@@ -6,11 +6,11 @@ if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
-# Ensure Node.js and ts-node are on PATH
 export PATH="/opt/node22/bin:$PATH"
-echo "export PATH=\"/opt/node22/bin:\$PATH\"" >> "${CLAUDE_ENV_FILE:-/dev/null}"
+if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
+  echo "export PATH=\"/opt/node22/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
+fi
 
-# Verify required tools
 for tool in node npm python3; do
   if ! command -v "$tool" &>/dev/null; then
     echo "ERROR: required tool '$tool' not found" >&2
@@ -18,8 +18,9 @@ for tool in node npm python3; do
   fi
 done
 
-# Install npm dev dependencies (idempotent — skips if node_modules is current)
 cd "${CLAUDE_PROJECT_DIR}"
-npm install
+if [ ! -d "node_modules" ] || [ "package-lock.json" -nt "node_modules" ]; then
+  npm install
+fi
 
 echo "Environment ready: node $(node --version), npm $(npm --version), python3 $(python3 --version)"
