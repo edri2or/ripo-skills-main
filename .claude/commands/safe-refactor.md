@@ -62,7 +62,3 @@ report the failure rather than continuing to iterate blindly.
 **User:** "Refactor `src/utils/dateHelper.ts` to use the `date-fns` library instead of manual string parsing"
 **Assistant:** Reads file, runs baseline tests (pass), proposes plan, waits for approval, applies edits,
 re-runs tests (pass), commits `refactor(utils): replace manual date parsing with date-fns`.
-
-## Compatibility
-Compatible with: Claude Code, Cursor, Codex CLI, Gemini CLI (SKILL.md standard)
-Source: Exported from .claude/plugins/engineering-std/skills/safe-refactor/ on 2026-04-16
