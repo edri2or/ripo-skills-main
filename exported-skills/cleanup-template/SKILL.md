@@ -2,10 +2,12 @@
 name: cleanup-template
 description: "Detaches a new project from its source template by replacing all template name references with the current project name. Use when cloning from any template and the repo still contains stale template references."
 allowed-tools:
-  - Bash
-  - Grep
   - Read
+  - Grep
   - Edit
+  - Bash(git remote *)
+  - Bash(basename *)
+  - Bash(pwd)
 maturity: experimental
 source-experiment: core
 evidence: "First use 2026-04-17. Validated in project-life-103."
