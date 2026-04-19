@@ -1,0 +1,108 @@
+name: Distribute Skills to Enrolled Repos
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'exported-skills/*/SKILL.md'
+
+jobs:
+  distribute:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect changed skills
+        id: detect
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD \
+            | grep -E '^exported-skills/[^/]+/SKILL\.md$' \
+            | sed 's|exported-skills/\([^/]*\)/SKILL\.md|\1|' \
+            | tr '\n' ' ')
+          echo "skills=$CHANGED" >> $GITHUB_OUTPUT
+          echo "Detected: $CHANGED"
+
+      - name: Find enrolled repos and distribute
+        if: steps.detect.outputs.skills != ''
+        env:
+          GH_TOKEN: ${{ secrets.RIPO_SKILLS_MAIN_PAT }}
+          SKILLS: ${{ steps.detect.outputs.skills }}
+        run: |
+          python3 << 'EOF'
+          import urllib.request, urllib.error, json, os, base64, sys
+
+          token = os.environ['GH_TOKEN']
+          skills = os.environ['SKILLS'].split()
+          headers = {
+              'Authorization': f'token {token}',
+              'Accept': 'application/vnd.github+json',
+              'Content-Type': 'application/json',
+          }
+
+          def gh(method, path, data=None):
+              url = f'https://api.github.com{path}'
+              body = json.dumps(data).encode() if data else None
+              req = urllib.request.Request(url, headers=headers, data=body, method=method)
+              try:
+                  with urllib.request.urlopen(req) as r:
+                      return json.loads(r.read()), None
+              except urllib.error.HTTPError as e:
+                  return None, e.code
+
+          # Discover enrolled repos (have skill-sync.yml, exclude ripo-skills-main)
+          enrolled = []
+          page = 1
+          while True:
+              repos, _ = gh('GET', f'/orgs/edri2or/repos?per_page=100&page={page}')
+              if not repos:
+                  break
+              for repo in repos:
+                  name = repo['full_name']
+                  if name == 'edri2or/ripo-skills-main':
+                      continue
+                  _, err = gh('GET', f'/repos/{name}/contents/.github/workflows/skill-sync.yml')
+                  if err is None:
+                      enrolled.append(name)
+              if len(repos) < 100:
+                  break
+              page += 1
+
+          print(f'Enrolled repos: {len(enrolled)}', flush=True)
+
+          summary_lines = ['## Distribution Results', '| Skill | Repo | Status |', '|-------|------|--------|']
+
+          for skill in skills:
+              skill_path = f'exported-skills/{skill}/SKILL.md'
+              if not os.path.exists(skill_path):
+                  print(f'WARN: {skill_path} not found', flush=True)
+                  continue
+
+              raw = open(skill_path).read()
+              # Strip YAML frontmatter for .claude/commands/
+              if raw.startswith('---'):
+                  parts = raw.split('---', 2)
+                  body = parts[2].lstrip() if len(parts) >= 3 else raw
+              else:
+                  body = raw
+
+              body_b64 = base64.b64encode(body.encode()).decode()
+
+              for repo in enrolled:
+                  existing, err = gh('GET', f'/repos/{repo}/contents/.claude/commands/{skill}.md')
+                  payload = {
+                      'message': f'chore: distribute {skill} from ripo-skills-main',
+                      'content': body_b64,
+                  }
+                  if existing:
+                      payload['sha'] = existing['sha']
+
+                  _, err = gh('PUT', f'/repos/{repo}/contents/.claude/commands/{skill}.md', payload)
+                  status = '✅' if err is None else f'❌ {err}'
+                  print(f'  {skill} → {repo}: {status}', flush=True)
+                  summary_lines.append(f'| `{skill}` | `{repo}` | {status} |')
+
+          with open(os.environ.get('GITHUB_STEP_SUMMARY', '/dev/null'), 'a') as f:
+              f.write('\n'.join(summary_lines) + '\n')
+          EOF
