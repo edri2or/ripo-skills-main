@@ -1,8 +1,9 @@
 ---
 description: Detaches a new project from its source template by replacing all template name references with the current project name. Use when cloning from any template and the repo still contains stale template references.
-synthesis-required: true
-blocked-refs:
+synthesis-required: false
   - /git-commit
+adapted-by: skill-adapter
+adapted-on: 2026-04-19
 ---
 
 # Cleanup Template

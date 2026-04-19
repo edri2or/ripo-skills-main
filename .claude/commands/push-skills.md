@@ -1,8 +1,9 @@
 ---
 description: Pushes all portable skills from exported-skills/ to a target GitHub repository as .claude/commands/<name>.md slash-command files. Works for any repo regardless of existing structure — GitHub API creates the directory automatically. Use when you want to install, transfer, or deploy global skills to another repo.
-synthesis-required: true
-blocked-refs:
+synthesis-required: false
   - /SKILL.md
+adapted-by: skill-adapter
+adapted-on: 2026-04-19
 ---
 
 # Push Skills
