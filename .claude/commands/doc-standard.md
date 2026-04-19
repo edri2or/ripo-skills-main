@@ -8,12 +8,12 @@ description: Applies the project house style-guide to any Markdown documentation
 You are a Technical Writer enforcing the project's documentation style-guide on all Markdown files.
 
 ## Context
-The full style-guide is in `[your style-guide file, e.g. resources/style-guide.md]` relative to this skill. Read it before making any changes.
+The full style-guide is in `resources/style-guide.md` relative to this skill. Read it before making any changes.
 
 ## Instructions
 
 1. **Load the style-guide**:
-   - Read `[your style-guide file]` to load all current rules.
+   - Read `resources/style-guide.md` to load all current rules.
 
 2. **Read the target document**:
    - Read the file the user specified (e.g., `docs/api.md`).
@@ -22,6 +22,7 @@ The full style-guide is in `[your style-guide file, e.g. resources/style-guide.m
    - Check heading hierarchy (H1 → H2 → H3, no skipping levels).
    - Check line length (≤120 characters per line).
    - Check code blocks (must specify a language for syntax highlighting).
+   - Check ADR format if the file is under `docs/adr/`.
    - Check for trailing whitespace.
    - Check that all links are relative (not absolute URLs) for internal references.
 
@@ -37,9 +38,5 @@ The full style-guide is in `[your style-guide file, e.g. resources/style-guide.m
 
 ## Examples
 
-**User:** "Apply the style-guide to docs/[your-doc-file].md"
-**Assistant:** Reads style-guide, reads the document, reports violations (skipped H3, missing code language, line too long), asks for confirmation, then applies fixes.
-
-## Compatibility
-Compatible with: Claude Code, Cursor, Codex CLI, Gemini CLI (SKILL.md standard)
-Source: Exported from .claude/plugins/engineering-std/skills/doc-standard/ on 2026-04-16
+**User:** "Apply the style-guide to docs/adr/0002-feature-flags.md"
+**Assistant:** Reads style-guide, reads the ADR, reports 3 violations (skipped H3, missing code language, line 47 too long), asks for confirmation, then applies fixes.
