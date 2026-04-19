@@ -1,5 +1,12 @@
 ---
-description: Parses a completed deep-research document, shows a confirmation summary, then creates the full file structure in dev/ideas/NNN-slug/ (product track, 5 files) or dev/changes/NNN-slug/ (infra track, 2 files) and updates the registry in dev/README.md. Use when the user has completed research and wants to deploy it into the dev tracking system.
+description: Parses a completed deep-research document, shows a confirmation summary, then creates the full file structure in dev/ideas/[your-idea-slug]/ (product track, 5 files) or dev/changes/[your-change-slug]/ (infra track, 2 files) and updates the registry in dev/README.md. Use when the user has completed research and wants to deploy it into the dev tracking system.
+synthesis-required: true
+blocked-refs:
+  - dev/ideas/NNN-slug
+  - dev/changes/NNN-slug
+  - dev/ideas/001-task-recurrence-feature
+  - dev/changes/001-supabase-ssr-v2
+  - JOURNEY.md
 ---
 
 # Dev Deploy Research
@@ -186,7 +193,7 @@ registry table.
 After all files are created, ask:
 > "Files created. Would you like me to append an entry to your session journal for this session?"
 
-If yes, append a new entry following the existing format in `[your session journal file, e.g. JOURNEY.md]`:
+If yes, append a new entry following the existing format in `[your session journal file, e.g. [your-journey-file]]`:
 
 ```markdown
 ## [YYYY-MM-DD] Deploy Research: [Title Case topic]
@@ -267,7 +274,7 @@ DEPLOYED
 
 **Assistant:** Detects Product track (STAGE-5 present). Reads `dev/README.md`, finds no existing
 DEV rows → assigns `DEV-001`. Derives slug `task-recurrence-feature`. Shows confirmation summary.
-User says "yes". Creates `dev/ideas/001-task-recurrence-feature/` with 5 files.
+User says "yes". Creates `dev/ideas/[your-idea-slug]/` with 5 files.
 Appends `| DEV-001 | Task Recurrence Feature | Stage 1 — Intake | draft | 2026-04-16 |`
 to Product Ideas Registry. Offers session journal append.
 
@@ -277,7 +284,7 @@ to Product Ideas Registry. Offers session journal append.
 finds no existing INF rows → assigns `INF-001`. Derives slug `supabase-ssr-upgrade`. Shows
 confirmation summary. User says "edit slug". Asks for preferred slug, user replies
 `supabase-ssr-v2`. Re-displays summary with updated slug. User says "yes". Creates
-`dev/changes/001-supabase-ssr-v2/` with 2 files. Copies "Blast Radius Assessment" and
+`dev/changes/[your-change-slug]/` with 2 files. Copies "Blast Radius Assessment" and
 "Rollback Plan" sections from research into infra RFC body. Appends to Infrastructure
 Changes Registry.
 
