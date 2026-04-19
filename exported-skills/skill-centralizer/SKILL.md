@@ -11,7 +11,7 @@ allowed-tools:
   - mcp__github__create_pull_request
 maturity: experimental
 source-experiment: core
-evidence: "First use 2026-04-19."
+evidence: "First use 2026-04-19. E2E verified 2026-04-19."
 ---
 
 # Skill Centralizer
