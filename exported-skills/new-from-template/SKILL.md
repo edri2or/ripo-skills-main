@@ -3,7 +3,7 @@ name: new-from-template
 description: "Create a new GitHub repo from a template and rename all template references to the new project name. Use when scaffolding a new project from a template repo in one step."
 allowed-tools:
   - Bash(gh repo *)
-  - Bash(git clone *)
+  - Bash(gh api *)
   - Bash(sleep *)
   - Read
   - Grep
@@ -26,10 +26,18 @@ new project name — reporting results and next steps to chat.
 
 ## Instructions
 
-### Step 1: Validate Inputs
+### Step 1: Resolve Inputs
 
-Expect two required arguments: `OWNER/TEMPLATE-REPO` and `NEW-REPO-NAME`.
 Accept an optional `--private` or `--public` flag (default: `--private`).
+
+**One argument provided (`NEW-REPO-NAME` only):**
+Auto-detect the template repo from the current directory:
+- Run `gh repo view --json nameWithOwner -q .nameWithOwner`
+- If this fails (not a GitHub repo, no remote), stop and output:
+  `Could not detect a GitHub repo in the current directory. Pass owner/template-repo explicitly.`
+
+**Two arguments provided (`OWNER/TEMPLATE-REPO` and `NEW-REPO-NAME`):**
+Use the first argument as the template repo.
 
 Validate:
 - `OWNER/TEMPLATE-REPO` — must match `owner/repo` pattern (two segments, each
@@ -56,9 +64,10 @@ Report: `Remote repo created: https://github.com/YOUR-LOGIN/NEW-REPO-NAME`
 
 ### Step 3: Clone With Retry
 
-Run `git clone https://github.com/YOUR-LOGIN/NEW-REPO-NAME` where YOUR-LOGIN
-is resolved from `gh repo view YOUR-LOGIN/NEW-REPO-NAME --json owner -q .owner.login`
-or inferred from the create output.
+Resolve YOUR-LOGIN via `gh api user -q .login`.
+
+Run `gh repo clone YOUR-LOGIN/NEW-REPO-NAME` — this uses the existing gh
+authentication and avoids HTTPS credential issues.
 
 If clone fails, wait 3 seconds and retry — up to 3 attempts total.
 
@@ -66,7 +75,7 @@ If all 3 attempts fail:
 ```
 Clone failed after 3 attempts. The remote repo was created successfully at:
   https://github.com/YOUR-LOGIN/NEW-REPO-NAME
-Run manually: git clone https://github.com/YOUR-LOGIN/NEW-REPO-NAME
+Run manually: gh repo clone YOUR-LOGIN/NEW-REPO-NAME
 ```
 Stop. Do not continue to cleanup.
 
@@ -147,17 +156,18 @@ Run /git-commit to commit the cleanup changes.
 
 ## Examples
 
-**User:** `/new-from-template acme/service-template my-new-api`
+**User:** `/new-from-template my-new-api`
+(running in a session on `edri2or/service-template`)
 
-**Agent behaviour:** Validates inputs, creates `my-new-api` as a private repo
-from `acme/service-template`, clones with retry logic, reads
-`.claude/template-source` (finds `service-template`), scans and finds 8
-occurrences in 5 files, shows replacement table, waits for confirmation,
-applies all edits, updates `.claude/template-source`, reports summary and
-directs user to `/git-commit`.
+**Agent behaviour:** Detects `edri2or/service-template` from the current git
+remote, creates `my-new-api` as a private repo from it, clones with retry
+logic, reads `.claude/template-source` (finds `service-template`), shows
+replacement table for 8 occurrences in 5 files, waits for confirmation,
+applies all edits, and directs user to `/git-commit`.
 
-**User:** `/new-from-template acme/service-template my-new-api --public`
+**User:** `/new-from-template edri2or/service-template my-new-api`
+(running from any session, not on the template repo)
 
-**Agent behaviour:** Same flow but creates the repo as public. If clone fails
-all 3 retries, outputs the remote URL with a manual clone command and stops
-without touching any files — leaving the user with a recovery path.
+**Agent behaviour:** Skips auto-detection, uses `edri2or/service-template`
+directly, then follows the same flow. If clone fails all 3 retries, outputs
+the remote URL with `gh repo clone edri2or/my-new-api` as the recovery command.
