@@ -174,7 +174,17 @@ for f in failed: print(' ', f)
 EOF
 ```
 
-### Step 6: Deploy Distribute Workflow to Central Repo
+### Step 6: Deploy Auto-merge Workflow to Central Repo
+
+Push `.github/workflows/auto-merge-sync.yml` to `$ORG/$CENTRAL_REPO` via `curl -X PUT`.
+
+Structure (see working reference: `edri2or/ripo-skills-main/.github/workflows/auto-merge-sync.yml`):
+- Triggers on `pull_request` opened/synchronized for branches matching `sync/*`
+- Job `validate`: checks out PR head, validates SKILL.md frontmatter (name, description ≤250 chars, allowed-tools)
+- Job `merge`: runs only if `validate` succeeded — calls `gh pr merge --squash --delete-branch`
+- Uses `RIPO_SKILLS_MAIN_PAT` for merge permissions; requires `contents: write` + `pull-requests: write`
+
+### Step 7: Deploy Distribute Workflow to Central Repo
 
 Push `.github/workflows/distribute-skills.yml` to `$ORG/$CENTRAL_REPO` via `curl -X PUT`.
 
