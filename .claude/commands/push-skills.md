@@ -328,6 +328,36 @@ elif mode == 'create-pr':
     except urllib.error.HTTPError as ex:
         body = ex.read().decode()
         print(f'FAIL {ex.code} {body[:200]}')
+
+elif mode == 'set-secret':
+    secret_name, secret_value = sys.argv[4], sys.argv[5]
+    req = urllib.request.Request(
+        f'https://api.github.com/repos/{owner}/{repo}/actions/public-key',
+        headers=get_headers())
+    with urllib.request.urlopen(req) as r:
+        key_data = json.loads(r.read())
+    key_bytes = base64.b64decode(key_data['key'])
+    try:
+        from nacl.public import SealedBox, PublicKey
+        encrypted = base64.b64encode(SealedBox(PublicKey(key_bytes)).encrypt(secret_value.encode())).decode()
+    except ImportError:
+        print('FAIL: pynacl not installed — run: pip install pynacl'); sys.exit(1)
+    payload = {'encrypted_value': encrypted, 'key_id': key_data['key_id']}
+    try:
+        with urllib.request.urlopen(urllib.request.Request(
+            f'https://api.github.com/repos/{owner}/{repo}/actions/secrets/{secret_name}',
+            data=json.dumps(payload).encode(), headers=api_headers(), method='PUT')) as r:
+            r.read()
+        print(f'OK secret {secret_name} set')
+    except urllib.error.HTTPError as ex:
+        print(f'FAIL {ex.code} {ex.reason}')
+
+elif mode == 'raw-file':
+    path, local_path = sys.argv[4], sys.argv[5]
+    with open(local_path, 'rb') as f:
+        github_put(f'https://api.github.com/repos/{owner}/{repo}/contents/{path}',
+                   f.read(), f'chore: add {os.path.basename(path)}')
+
 ```
 
 ### Step 4.5: Create a Branch
@@ -357,6 +387,36 @@ done
 ```
 
 Capture each line of output for the Step 7 summary.
+
+### Step 5.5: Provision Secret and Deploy Auto-Sync Workflow
+
+Fully automatic — no manual action required.
+
+**5.5a.** Encrypt and set `RIPO_SKILLS_MAIN_PAT` in the target repo:
+
+```bash
+RIPO_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+if [ -n "$RIPO_TOKEN" ]; then
+  pip install pynacl -q
+  result=$(EFFECTIVE_TOKEN="$EFFECTIVE_TOKEN" python3 /tmp/push_contents.py set-secret <OWNER> <REPO> RIPO_SKILLS_MAIN_PAT "$RIPO_TOKEN")
+  echo "secret: $result"
+else
+  echo "WARN: GH_TOKEN not set — RIPO_SKILLS_MAIN_PAT not provisioned"
+fi
+```
+
+**5.5b.** Fetch and deploy the auto-sync workflow:
+
+```bash
+curl -s -H "Authorization: token ${GH_TOKEN:-$GITHUB_TOKEN}" \
+  "https://api.github.com/repos/edri2or/ripo-skills-main/contents/templates/skill-sync.yml" \
+  | python3 -c "import sys,json,base64; d=json.load(sys.stdin); open('/tmp/skill-sync.yml','wb').write(base64.b64decode(d['content']))"
+
+result=$(EFFECTIVE_TOKEN="$EFFECTIVE_TOKEN" PUSH_BRANCH="$PUSH_BRANCH" \
+    python3 /tmp/push_contents.py raw-file <OWNER> <REPO> \
+    ".github/workflows/skill-sync.yml" "/tmp/skill-sync.yml")
+echo "workflow: $result"
+```
 
 ### Step 6: Open a Pull Request
 
