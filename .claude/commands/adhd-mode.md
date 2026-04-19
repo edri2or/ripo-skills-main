@@ -1,6 +1,6 @@
 ---
 name: adhd-mode
-description: "Adapts Claude's responses for ADHD throughout the session: chunked output, situational analogies, reduced cognitive load. Optional context token: scattered/overload/hyper/flow. Use when you need ADHD-friendly communication for the rest of the session."
+description: "Adapts Claude's responses for ADHD throughout the session: chunked output, situational analogy, reduced cognitive load. Optional context token: scattered/overload/hyper/flow. Use when you need ADHD-friendly communication for the rest of the session."
 allowed-tools: []
 maturity: experimental
 source-experiment: core
