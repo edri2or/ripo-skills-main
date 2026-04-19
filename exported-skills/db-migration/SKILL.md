@@ -59,6 +59,8 @@ Refer to the project's `src/data-source.ts` for the active DataSource configurat
 - Never run `migration:run` in production without explicit `--env=production` acknowledgement.
 - Always verify that the `down()` rollback is non-destructive for irreversible changes (e.g., adding a column is reversible; dropping a column may not be).
 - If data backfill is required, create a separate seeder script in `scripts/` and document it in a comment in the migration file.
+- **CVE-2025-60542**: Before running any migration, verify TypeORM ≥ 0.3.26 is installed (`npx typeorm --version`). Versions below 0.3.26 are vulnerable to SQL injection via `repository.save`/`repository.update`. Refuse to proceed if the version check fails.
+- The `psql` tool permission is scoped to schema-verification only — do not use it to execute ad-hoc SQL outside the verification script.
 
 ## Examples
 
