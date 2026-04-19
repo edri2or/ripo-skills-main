@@ -1,0 +1,65 @@
+name: Skill Auto-Sync to ripo-skills-main
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'exported-skills/*/SKILL.md'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # Skip commits from push-skills itself (already in ripo-skills-main)
+    if: "!startsWith(github.event.head_commit.message, 'chore: sync exported-skills/')"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect new or changed skills
+        id: detect
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'exported-skills/*/SKILL.md' \
+            | sed 's|exported-skills/||;s|/SKILL\.md||' | tr '\n' ' ')
+          echo "skills=$CHANGED" >> $GITHUB_OUTPUT
+
+      - name: Push each skill to ripo-skills-main
+        if: steps.detect.outputs.skills != ''
+        env:
+          GH_TOKEN: ${{ secrets.RIPO_SKILLS_MAIN_PAT }}
+        run: |
+          for SKILL in ${{ steps.detect.outputs.skills }}; do
+            echo "Syncing: $SKILL"
+            CONTENT=$(base64 -w0 "exported-skills/$SKILL/SKILL.md")
+            HASH=$(sha256sum "exported-skills/$SKILL/SKILL.md" | cut -d' ' -f1)
+
+            BASE_SHA=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+              https://api.github.com/repos/edri2or/ripo-skills-main/git/refs/heads/main \
+              | python3 -c "import sys,json; print(json.load(sys.stdin)['object']['sha'])")
+
+            BRANCH="sync/$SKILL-$(date -u +%Y-%m-%d)"
+            curl -sf -X POST -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/edri2or/ripo-skills-main/git/refs \
+              -d "{\"ref\":\"refs/heads/$BRANCH\",\"sha\":\"$BASE_SHA\"}" > /dev/null
+
+            EXISTING_SHA=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/edri2or/ripo-skills-main/contents/exported-skills/$SKILL/SKILL.md" \
+              | python3 -c "import sys,json; print(json.load(sys.stdin).get('sha',''))" 2>/dev/null || echo "")
+
+            PAYLOAD="{\"message\":\"sync: add $SKILL from ${{ github.repository }}\",\"content\":\"$CONTENT\",\"branch\":\"$BRANCH\""
+            [ -n "$EXISTING_SHA" ] && PAYLOAD="$PAYLOAD,\"sha\":\"$EXISTING_SHA\""
+            PAYLOAD="$PAYLOAD}"
+
+            curl -sf -X PUT -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/edri2or/ripo-skills-main/contents/exported-skills/$SKILL/SKILL.md" \
+              -d "$PAYLOAD" > /dev/null
+
+            curl -sf -X POST -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              https://api.github.com/repos/edri2or/ripo-skills-main/pulls \
+              -d "{\"title\":\"sync($SKILL): from ${{ github.repository }}\",\"body\":\"**SHA256:** $HASH\\n\\nbuild-skill + skill-templatizer run on merge.\",\"head\":\"$BRANCH\",\"base\":\"main\"}" \
+              | python3 -c "import sys,json; d=json.load(sys.stdin); print('PR:', d.get('html_url', d.get('message','?')))"
+          done
