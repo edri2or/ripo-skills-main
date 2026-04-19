@@ -54,7 +54,3 @@ leaked token. Refresh endpoint updated; old tokens are revoked immediately.
 Closes #118
 ```
 Then stages `src/auth/` files and commits.
-
-## Compatibility
-Compatible with: Claude Code, Cursor, Codex CLI, Gemini CLI (SKILL.md standard)
-Source: Exported from .claude/plugins/engineering-std/skills/git-commit/ on 2026-04-16
