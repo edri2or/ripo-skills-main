@@ -1,5 +1,15 @@
 ---
 description: Converts an existing project-specific SKILL.md into a portable, system-agnostic version. Strips project references, product terms, and experiment IDs. Use when you want to reuse an existing skill in any independent codebase.
+synthesis-required: true
+blocked-refs:
+  - PRODUCT.md
+  - JOURNEY.md
+  - AGENT.md
+  - REGISTRY.md
+  - Supabase
+  - TypeORM
+  - Vercel
+  - /git-commit
 ---
 
 # Skill Converter
@@ -35,7 +45,7 @@ Build a findings list: `[line N] <original text> → <action: remove | generaliz
 
 **File path references** (remove or generalize):
 - Paths under `src/`, `docs/adr/`, `experiments/`, `dev/`, `research/`, `policy/`
-- Named files: `JOURNEY.md`, `CLAUDE.md`, `PRODUCT.md`, `AGENT.md`, `REGISTRY.md`
+- Named files: `[your-journey-file]`, `CLAUDE.md`, `[your-product-file]`, `[your-agent-file]`, `[your-registry-file]`
 - Named plugin paths: `.claude/plugins/<specific-plugin-name>/`
 
 **Product terminology** (replace with generic equivalents):
@@ -44,7 +54,7 @@ Build a findings list: `[line N] <original text> → <action: remove | generaliz
 - Experiment IDs: `source-experiment` values other than `core`
 
 **Stack assumptions** (keep only if universal):
-- Flag as project-specific: stack names with version pins (e.g., "Next.js 15", "TypeORM", "Supabase", "Vercel")
+- Flag as project-specific: stack names with version pins (e.g., "Next.js 15", "[your-typeorm]", "[your-supabase]", "[your-vercel]")
 - Keep as universal: `git`, `npm`, `node`, `bash`
 
 **Governance references** (remove):
@@ -130,7 +140,7 @@ Strips `/` → `[your-product-skill]`. Globs and reads source. Checklist finds: 
 **User:** "print the global version of /db-migration"
 
 **Agent behaviour:**
-Strips `/` → `db-migration`. Detects "print" intent → Mode C. Reads source, runs checklist, finds "TypeORM" — asks: "TypeORM is a specific ORM. Shall I generalize to '[your ORM]' or keep it TypeORM-specific?" On answer, continues checklist, synthesizes, and prints to chat. No file written, no approval prompt.
+Strips `/` → `db-migration`. Detects "print" intent → Mode C. Reads source, runs checklist, finds "[your-typeorm]" — asks: "[your-typeorm] is a specific ORM. Shall I generalize to '[your ORM]' or keep it [your-typeorm]-specific?" On answer, continues checklist, synthesizes, and prints to chat. No file written, no approval prompt.
 
 ## Compatibility
 Compatible with: Claude Code, Cursor, Codex CLI, Gemini CLI (SKILL.md standard)
