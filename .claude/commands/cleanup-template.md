@@ -1,5 +1,8 @@
 ---
-description: "Detaches a new project from its source template by replacing all template name references with the current project name. Use when cloning from any template and the repo still contains stale template references."
+description: Detaches a new project from its source template by replacing all template name references with the current project name. Use when cloning from any template and the repo still contains stale template references.
+synthesis-required: true
+blocked-refs:
+  - /git-commit
 ---
 
 # Cleanup Template
@@ -87,4 +90,4 @@ next project name automatically. The chain continues indefinitely without any ha
 
 ## Compatibility
 Compatible with: Claude Code, Cursor, Codex CLI, Gemini CLI (SKILL.md standard)
-Source: Included in ripo-skills-main template as of 2026-04-17
+Source: Included in project-life-126 template as of 2026-04-17
