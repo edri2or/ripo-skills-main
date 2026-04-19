@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Bootstrap a new project from the project-life-107 template.
+# Bootstrap a new project from the ripo-skills-main template.
 #
 # Usage:
 #   ./scripts/create-from-template.sh <new-project-name> [target-directory]
@@ -9,8 +9,8 @@
 
 set -euo pipefail
 
-TEMPLATE_REPO="https://github.com/edri2or/project-life-107.git"
-TEMPLATE_NAME="project-life-107"
+TEMPLATE_REPO="https://github.com/edri2or/ripo-skills-main.git"
+TEMPLATE_NAME="ripo-skills-main"
 
 # ── Argument validation ───────────────────────────────────────────────────────
 if [[ $# -lt 1 ]]; then

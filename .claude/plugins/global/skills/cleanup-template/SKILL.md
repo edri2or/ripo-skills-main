@@ -96,4 +96,4 @@ next project name automatically. The chain continues indefinitely without any ha
 
 ## Compatibility
 Compatible with: Claude Code, Cursor, Codex CLI, Gemini CLI (SKILL.md standard)
-Source: Included in project-life-107 template as of 2026-04-17
+Source: Included in ripo-skills-main template as of 2026-04-17

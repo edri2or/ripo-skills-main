@@ -1,4 +1,4 @@
-# project-life-107 — Documentation Policy-as-Code for Autonomous AI Agents
+# ripo-skills-main — Documentation Policy-as-Code for Autonomous AI Agents
 
 A reference implementation of a **4-layer documentation enforcement system** for repositories where
 autonomous AI agents (such as Claude Code) are active contributors.
@@ -36,15 +36,15 @@ Policy-as-Code (PaC) enforcement via OPA/Conftest as a **blocking CI gate** on e
 
 ```bash
 # From anywhere on your machine:
-curl -fsSL https://raw.githubusercontent.com/edri2or/project-life-107/main/scripts/create-from-template.sh | \
+curl -fsSL https://raw.githubusercontent.com/edri2or/ripo-skills-main/main/scripts/create-from-template.sh | \
   bash -s -- my-new-project
 
 # Or clone first and run locally:
-git clone https://github.com/edri2or/project-life-107.git
-./project-life-107/scripts/create-from-template.sh my-new-project
+git clone https://github.com/edri2or/ripo-skills-main.git
+./ripo-skills-main/scripts/create-from-template.sh my-new-project
 ```
 
-The script clones the repo, replaces every `project-life-107` reference with your project name,
+The script clones the repo, replaces every `ripo-skills-main` reference with your project name,
 updates `.claude/template-source` for the next generation, and creates an initial commit.
 
 ### Option B — GitHub "Use this template" button

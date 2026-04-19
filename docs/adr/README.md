@@ -1,6 +1,6 @@
 # Architecture Decision Records
 
-This directory contains all Architecture Decision Records (ADRs) for `project-life-107`.
+This directory contains all Architecture Decision Records (ADRs) for `ripo-skills-main`.
 
 ADRs capture significant architectural decisions and their rationale. They are **immutable** once accepted —
 to reverse or supersede a decision, create a new ADR that references the old one and mark the old one
