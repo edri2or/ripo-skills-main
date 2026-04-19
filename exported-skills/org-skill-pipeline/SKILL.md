@@ -91,7 +91,8 @@ with urllib.request.urlopen(req) as r:
 EOF
 ```
 
-If `nacl` is unavailable: `pip install pynacl` first.
+If `nacl` is unavailable: `pip install "pynacl>=1.6.2"` first.
+(CVE-2025-69277: PyNaCl < 1.6.2 has an ECC validation bypass — always pin ≥ 1.6.2.)
 
 ### Step 4: Deploy Reusable Workflow to Central Repo
 
@@ -219,6 +220,9 @@ curl -s -H "Authorization: Bearer $GH_TOKEN" \
 3. **NEVER deploy cross-org** — `secrets: inherit` only works within the same GitHub organization.
 4. **NEVER add a third nesting layer** — keep the chain at exactly 2 levels (caller → reusable); secrets do not propagate transitively beyond 2 hops.
 5. **NEVER use a static repo list** — always discover enrolled repos dynamically via the GitHub API.
+6. **NEVER deploy to all repos without user confirmation.** Before Step 5, display the full list of target repos and the count, then ask: "About to deploy skill-sync.yml to N repositories. Confirm (yes/no/select)?" Do not proceed until confirmed.
+7. **NEVER set the org secret `RIPO_SKILLS_MAIN_PAT` equal to the full-admin `GH_TOKEN`.** Use a dedicated fine-grained PAT scoped to the central repo only, with `visibility: selected`. A PAT with `admin:org` scope set to `visibility: all` grants every org repo full org-admin access.
+8. **NEVER deploy `auto-merge-sync.yml` automatically** — auto-merge on `sync/*` branches is an unreviewed-merge vector. Deploy it only after explicit user opt-in per repo.
 
 ## Examples
 
