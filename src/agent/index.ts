@@ -12,8 +12,8 @@
  * executed with ts-node or compiled to plain JS without additional setup.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from "fs";
+import * as path from "path";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -39,21 +39,29 @@ export interface SkillFull extends SkillMeta {
 // YAML frontmatter parser (minimal, no external dependency)
 // ---------------------------------------------------------------------------
 
-function parseFrontmatter(content: string): { meta: Record<string, unknown>; body: string } {
-  const FENCE = '---';
-  const lines = content.split('\n');
+function parseFrontmatter(content: string): {
+  meta: Record<string, unknown>;
+  body: string;
+} {
+  const FENCE = "---";
+  const lines = content.split("\n");
 
   if (lines[0].trim() !== FENCE) {
     return { meta: {}, body: content };
   }
 
-  const closingIndex = lines.findIndex((line, idx) => idx > 0 && line.trim() === FENCE);
+  const closingIndex = lines.findIndex(
+    (line, idx) => idx > 0 && line.trim() === FENCE,
+  );
   if (closingIndex === -1) {
     return { meta: {}, body: content };
   }
 
   const frontmatterLines = lines.slice(1, closingIndex);
-  const body = lines.slice(closingIndex + 1).join('\n').trimStart();
+  const body = lines
+    .slice(closingIndex + 1)
+    .join("\n")
+    .trimStart();
 
   const meta: Record<string, unknown> = {};
   let currentArray: string[] | null = null;
@@ -61,14 +69,14 @@ function parseFrontmatter(content: string): { meta: Record<string, unknown>; bod
   for (const line of frontmatterLines) {
     // Array item
     if (line.match(/^\s+-\s+(.+)/) && currentArray !== null) {
-      currentArray.push(line.replace(/^\s+-\s+/, '').trim());
+      currentArray.push(line.replace(/^\s+-\s+/, "").trim());
       continue;
     }
     // Key-value pair
     const kvMatch = line.match(/^(\w[\w-]*):\s*(.*)/);
     if (kvMatch) {
       const [, key, value] = kvMatch;
-      if (value.trim() === '') {
+      if (value.trim() === "") {
         currentArray = [];
         meta[key] = currentArray;
       } else {
@@ -92,8 +100,10 @@ function parseFrontmatter(content: string): { meta: Record<string, unknown>; bod
  *
  * @param projectRoot Absolute path to the repository root. Defaults to cwd.
  */
-export function discoverSkills(projectRoot: string = process.cwd()): SkillMeta[] {
-  const pluginsDir = path.join(projectRoot, '.claude', 'plugins');
+export function discoverSkills(
+  projectRoot: string = process.cwd(),
+): SkillMeta[] {
+  const pluginsDir = path.join(projectRoot, ".claude", "plugins");
 
   if (!fs.existsSync(pluginsDir)) {
     return [];
@@ -107,14 +117,18 @@ export function discoverSkills(projectRoot: string = process.cwd()): SkillMeta[]
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         walkDir(fullPath);
-      } else if (entry.isFile() && entry.name === 'SKILL.md') {
-        const content = fs.readFileSync(fullPath, 'utf-8');
+      } else if (entry.isFile() && entry.name === "SKILL.md") {
+        const content = fs.readFileSync(fullPath, "utf-8");
         const { meta } = parseFrontmatter(content);
 
-        const name = typeof meta['name'] === 'string' ? meta['name'] : path.basename(path.dirname(fullPath));
-        const description = typeof meta['description'] === 'string' ? meta['description'] : '';
-        const allowedTools = Array.isArray(meta['allowed-tools'])
-          ? (meta['allowed-tools'] as string[])
+        const name =
+          typeof meta["name"] === "string"
+            ? meta["name"]
+            : path.basename(path.dirname(fullPath));
+        const description =
+          typeof meta["description"] === "string" ? meta["description"] : "";
+        const allowedTools = Array.isArray(meta["allowed-tools"])
+          ? (meta["allowed-tools"] as string[])
           : [];
 
         skills.push({ name, description, allowedTools, filePath: fullPath });
@@ -137,7 +151,7 @@ function tokenise(text: string): Set<string> {
   return new Set(
     text
       .toLowerCase()
-      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/[^a-z0-9\s]/g, " ")
       .split(/\s+/)
       .filter((t) => t.length > 1),
   );
@@ -196,7 +210,7 @@ export function routeIntent(
  * Called only after routing — keeps the initial discovery lean.
  */
 export function activateSkill(skill: SkillMeta): SkillFull {
-  const content = fs.readFileSync(skill.filePath, 'utf-8');
+  const content = fs.readFileSync(skill.filePath, "utf-8");
   const { body } = parseFrontmatter(content);
   return { ...skill, body };
 }
@@ -206,7 +220,7 @@ export function activateSkill(skill: SkillMeta): SkillFull {
 // ---------------------------------------------------------------------------
 
 if (require.main === module) {
-  const intent = process.argv.slice(2).join(' ');
+  const intent = process.argv.slice(2).join(" ");
   if (!intent) {
     console.error('Usage: ts-node src/agent/index.ts "<user intent>"');
     process.exit(1);
@@ -217,13 +231,13 @@ if (require.main === module) {
 
   const match = routeIntent(intent, skills);
   if (!match) {
-    console.log('No matching skill found for:', intent);
+    console.log("No matching skill found for:", intent);
     process.exit(0);
   }
 
   const full = activateSkill(match);
   console.log(`\nActivated skill: ${full.name}`);
-  console.log(`Allowed tools:   ${full.allowedTools.join(', ') || '(all)'}`);
-  console.log('\n--- Skill Body ---\n');
+  console.log(`Allowed tools:   ${full.allowedTools.join(", ") || "(all)"}`);
+  console.log("\n--- Skill Body ---\n");
   console.log(full.body);
 }
