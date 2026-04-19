@@ -48,7 +48,3 @@ A failure in this skill cannot break the build, making it safe for initial deplo
 **Assistant:** Reads `src/services/AuthService.ts` and `docs/services/AuthService.md`, detects that
 the `refreshToken(userId: string, force?: boolean)` signature is not documented, proposes adding a
 parameters table, then applies it after confirmation.
-
-## Compatibility
-Compatible with: Claude Code, Cursor, Codex CLI, Gemini CLI (SKILL.md standard)
-Source: Exported from .claude/plugins/engineering-std/skills/doc-updater/ on 2026-04-16
