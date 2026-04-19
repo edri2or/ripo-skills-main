@@ -23,6 +23,88 @@ jobs:
             | tr '\n' ' ')
           echo "skills=$CHANGED" >> $GITHUB_OUTPUT
 
+      - name: Write templatizer script
+        if: steps.detect.outputs.skills != ''
+        run: |
+          cat > /tmp/process_skill.py << 'PYEOF'
+          import sys, re, os
+
+          src_path = sys.argv[1]
+          dst_path = sys.argv[2]
+
+          with open(src_path, 'r') as f:
+              content = f.read()
+
+          body = re.sub(r'```[\s\S]*?```', '', content)
+
+          PROJECT_FILES = {
+              'PRODUCT.md':  '[your-product-file]',
+              'JOURNEY.md':  '[your-journey-file]',
+              'AGENT.md':    '[your-agent-file]',
+              'REGISTRY.md': '[your-registry-file]',
+          }
+          SERVICES = ['Railway', 'Supabase', 'Telegram', 'OpenRouter', 'TypeORM', 'Prisma', 'Vercel', 'Cloudflare']
+
+          score = 100
+          blocked = []
+
+          def penalise(label, amount):
+              global score
+              if label not in blocked:
+                  blocked.append(label)
+                  score -= amount
+
+          for m in re.findall(r'dev/(?:changes|ideas)/[\w-]+', body):
+              penalise(m, 15)
+          for ref in PROJECT_FILES:
+              if ref in body:
+                  penalise(ref, 15)
+          for svc in SERVICES:
+              if svc in body:
+                  penalise(svc, 10)
+          for p in re.findall(r'`(/(?!tmp)[^`\s]{3,})`', body):
+              penalise(p, 15)
+
+          fm_match = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
+          if fm_match:
+              src_exp_match = re.search(r'^source-experiment:\s*"?(\S+?)"?\s*$', fm_match.group(1), re.MULTILINE)
+              if src_exp_match and src_exp_match.group(1) != 'core':
+                  penalise('non-core source-experiment', 20)
+
+          score = max(0, min(100, score))
+          synthesis_required = score < 80
+          out = content
+
+          if synthesis_required:
+              saved = []
+              def save(block_match):
+                  saved.append(block_match.group(0))
+                  return f'<<<BLOCK_{len(saved)-1}>>>'
+              out = re.sub(r'```[\s\S]*?```', save, out)
+              out = re.sub(r'dev/(changes|ideas)/[\w-]+',
+                           lambda m: f'dev/{m.group(1)}/[your-{m.group(1)[:-1]}-slug]', out)
+              for ref, ph in PROJECT_FILES.items():
+                  out = out.replace(ref, ph)
+              for svc in SERVICES:
+                  out = out.replace(svc, f'[your-{svc.lower()}]')
+              for i, block in enumerate(saved):
+                  out = out.replace(f'<<<BLOCK_{i}>>>', block)
+              out = re.sub(r'(source-experiment:\s*)[^\n]+', r'\1core', out, count=1)
+
+          meta = [f'scope: global', f'portability: {score}',
+                  f'synthesis-required: {"true" if synthesis_required else "false"}']
+          if synthesis_required and blocked:
+              meta += ['blocked-refs:'] + [f'  - {b}' for b in blocked]
+          out = re.sub(r'\n---\n', '\n' + '\n'.join(meta) + '\n---\n', out, count=1)
+
+          os.makedirs(os.path.dirname(dst_path), exist_ok=True)
+          with open(dst_path, 'w') as f:
+              f.write(out)
+
+          action = 'synthesized' if synthesis_required else 'direct'
+          print(f'SCORE:{score}|ACTION:{action}|REFS:{len(blocked)}')
+          PYEOF
+
       - name: Sync to ripo-skills-main and post proof
         if: steps.detect.outputs.skills != ''
         env:
@@ -30,15 +112,21 @@ jobs:
           NOTIFY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "## Skill Sync Results" >> $GITHUB_STEP_SUMMARY
-          echo "| Skill | PR | SHA256 |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Skill | Score | Action | PR | SHA256 |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|--------|----|--------|" >> $GITHUB_STEP_SUMMARY
 
           for SKILL in ${{ steps.detect.outputs.skills }}; do
             SKILL_PATH=$(find .claude/plugins -name "SKILL.md" -path "*/$SKILL/SKILL.md" | head -1)
             [ -z "$SKILL_PATH" ] && echo "WARN: $SKILL not found" && continue
 
-            CONTENT=$(base64 -w0 "$SKILL_PATH")
-            HASH=$(sha256sum "$SKILL_PATH" | cut -d' ' -f1)
+            # Run templatizer → /tmp/<skill>-exported.md
+            EXPORTED="/tmp/$SKILL-exported.md"
+            TEMPLATIZER_OUT=$(python3 /tmp/process_skill.py "$SKILL_PATH" "$EXPORTED")
+            SCORE=$(echo "$TEMPLATIZER_OUT" | grep -oP 'SCORE:\K[0-9]+')
+            ACTION=$(echo "$TEMPLATIZER_OUT" | grep -oP 'ACTION:\K\w+')
+
+            CONTENT=$(base64 -w0 "$EXPORTED")
+            HASH=$(sha256sum "$EXPORTED" | cut -d' ' -f1)
 
             BASE_SHA=$(curl -sf -H "Authorization: token $RIPO_TOKEN" \
               https://api.github.com/repos/edri2or/ripo-skills-main/git/refs/heads/main \
@@ -66,14 +154,14 @@ jobs:
             PR_URL=$(curl -sf -X POST -H "Authorization: token $RIPO_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               https://api.github.com/repos/edri2or/ripo-skills-main/pulls \
-              -d "{\"title\":\"sync($SKILL): from ${{ github.repository }}\",\"body\":\"**Skill:** \`$SKILL\`  \\n**Source:** ${{ github.repository }}  \\n**Commit:** ${{ github.sha }}  \\n**SHA256:** \`$HASH\`  \\n\\nbuild-skill + skill-templatizer will run on merge.\",\"head\":\"$BRANCH\",\"base\":\"main\"}" \
+              -d "{\"title\":\"sync($SKILL): from ${{ github.repository }}\",\"body\":\"**Skill:** \`$SKILL\`  \\n**Source:** ${{ github.repository }}  \\n**Commit:** ${{ github.sha }}  \\n**SHA256:** \`$HASH\`  \\n**Portability:** $SCORE/100 ($ACTION)  \\n\\nbuild-skill + skill-templatizer applied on sync.\",\"head\":\"$BRANCH\",\"base\":\"main\"}" \
               | python3 -c "import sys,json; print(json.load(sys.stdin).get('html_url',''))")
 
             curl -sf -X POST -H "Authorization: token $NOTIFY_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
-              -d "{\"body\":\"✅ **Skill \`$SKILL\` synced to ripo-skills-main**\\n\\n→ $PR_URL\\nSHA256: \`$HASH\`\"}"
+              -d "{\"body\":\"✅ **Skill \`$SKILL\` synced to ripo-skills-main**\\n\\n→ $PR_URL\\nSHA256: \`$HASH\`\\nPortability: $SCORE/100 ($ACTION)\"}"
 
-            echo "✓ $SKILL → $PR_URL"
-            echo "| \`$SKILL\` | [PR]($PR_URL) | \`${HASH:0:12}...\` |" >> $GITHUB_STEP_SUMMARY
+            echo "✓ $SKILL → $PR_URL (score: $SCORE, $ACTION)"
+            echo "| \`$SKILL\` | $SCORE/100 | $ACTION | [PR]($PR_URL) | \`${HASH:0:12}...\` |" >> $GITHUB_STEP_SUMMARY
           done
