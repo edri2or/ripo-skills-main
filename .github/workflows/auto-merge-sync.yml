@@ -1,0 +1,72 @@
+name: Auto-merge skill sync PRs
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate:
+    if: startsWith(github.head_ref, 'sync/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate SKILL.md frontmatter
+        run: |
+          SKILL_FILE=$(git diff --name-only origin/main...HEAD \
+            | grep -E '^exported-skills/[^/]+/SKILL\.md$' | head -1)
+
+          if [ -z "$SKILL_FILE" ] || [ ! -f "$SKILL_FILE" ]; then
+            echo "No SKILL.md in diff — skipping validation"
+            exit 0
+          fi
+
+          echo "Validating: $SKILL_FILE"
+
+          python3 - "$SKILL_FILE" << 'PYEOF'
+          import sys, re
+
+          path = sys.argv[1]
+          with open(path) as f:
+              content = f.read()
+
+          errors = []
+          if not content.startswith('---'):
+              errors.append('missing frontmatter block')
+          else:
+              parts = content.split('---', 2)
+              fm = parts[1] if len(parts) >= 2 else ''
+              for field in ['name:', 'description:', 'allowed-tools:']:
+                  if field not in fm:
+                      errors.append(f'missing required field: {field}')
+              desc = re.search(r'description:\s*"([^"]+)"', fm)
+              if desc and len(desc.group(1)) > 250:
+                  errors.append(f'description too long: {len(desc.group(1))} > 250 chars')
+
+          if errors:
+              for e in errors:
+                  print(f'❌ {e}')
+              sys.exit(1)
+
+          print(f'✅ {path} — frontmatter valid')
+          PYEOF
+
+  merge:
+    needs: validate
+    runs-on: ubuntu-latest
+    if: needs.validate.result == 'success' && startsWith(github.head_ref, 'sync/')
+    permissions:
+      pull-requests: write
+      contents: write
+    steps:
+      - name: Merge PR
+        env:
+          GH_TOKEN: ${{ secrets.RIPO_SKILLS_MAIN_PAT }}
+        run: |
+          gh pr merge ${{ github.event.pull_request.number }} \
+            --squash \
+            --repo edri2or/ripo-skills-main \
+            --delete-branch
