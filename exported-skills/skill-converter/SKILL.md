@@ -1,5 +1,16 @@
 ---
-description: Converts an existing project-specific SKILL.md into a portable, system-agnostic version. Strips project references, product terms, and experiment IDs. Use when you want to reuse an existing skill in any independent codebase.
+name: skill-converter
+description: "Converts an existing project-specific SKILL.md into a portable, system-agnostic version. Strips project references, product terms, and experiment IDs. Use when you want to reuse an existing skill in any independent codebase."
+allowed-tools:
+  - Read
+  - Glob
+  - Write
+  - Bash(mkdir -p *)
+maturity: experimental
+source-experiment: core
+evidence: "Exported from engineering-std on 2026-04-16. Not yet validated in independent systems."
+scope: global
+portability: 0
 synthesis-required: true
 blocked-refs:
   - PRODUCT.md
@@ -10,6 +21,7 @@ blocked-refs:
   - TypeORM
   - Vercel
   - /git-commit
+  - /<skill-name>
 ---
 
 # Skill Converter

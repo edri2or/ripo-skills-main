@@ -1,5 +1,14 @@
 ---
+name: enterprise-feature-scaffold
 description: Scaffolds a new vertical slice feature (Controller, Service, Repository) following Clean Architecture standards. Use when creating new API endpoints or modules.
+allowed-tools:
+  - Read
+  - LS
+  - Grep
+  - Bash(mkdir -p *)
+scope: global
+portability: 100
+synthesis-required: false
 ---
 
 # Enterprise Feature Scaffold

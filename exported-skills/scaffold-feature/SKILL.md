@@ -1,5 +1,16 @@
 ---
+name: scaffold-feature
 description: Generates a new vertical-slice feature (Controller, Service, Repository) from standardized templates following Clean Architecture. Use when the user asks to create a new feature, scaffold a module, generate boilerplate, or add a new API endpoint group.
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Write
+  - Bash(mkdir -p *)
+  - Bash(npm run lint -- *)
+scope: global
+portability: 100
+synthesis-required: false
 ---
 
 # Feature Scaffold Skill (Phase 2 Beta)

@@ -1,5 +1,19 @@
 ---
+name: safe-refactor
 description: Safely refactors a module through a baseline-test → edit → retest → self-correct → commit loop. Use when the user asks to refactor code, clean up a module, rename a class, extract a function, or restructure code without changing behaviour.
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Edit
+  - Bash(npm test *)
+  - Bash(npm run lint *)
+  - Bash(git diff *)
+  - Bash(git add *)
+  - Bash(git commit *)
+scope: global
+portability: 100
+synthesis-required: false
 ---
 
 # Safe Refactor Skill (Phase 3 Production)

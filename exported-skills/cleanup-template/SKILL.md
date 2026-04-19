@@ -1,8 +1,20 @@
 ---
-description: Detaches a new project from its source template by replacing all template name references with the current project name. Use when cloning from any template and the repo still contains stale template references.
+name: cleanup-template
+description: "Detaches a new project from its source template by replacing all template name references with the current project name. Use when cloning from any template and the repo still contains stale template references."
+allowed-tools:
+  - Bash
+  - Grep
+  - Read
+  - Edit
+maturity: experimental
+source-experiment: core
+evidence: "First use 2026-04-17. Validated in project-life-103."
+scope: global
+portability: 70
 synthesis-required: true
 blocked-refs:
   - /git-commit
+  - /cleanup-template
 ---
 
 # Cleanup Template

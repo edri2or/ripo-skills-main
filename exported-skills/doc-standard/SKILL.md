@@ -1,5 +1,14 @@
 ---
+name: doc-standard
 description: Applies the project house style-guide to any Markdown documentation file. Use when the user asks to fix documentation formatting, enforce style, lint a markdown file, or standardize docs.
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Grep
+scope: global
+portability: 100
+synthesis-required: false
 ---
 
 # Documentation Standard Enforcer

@@ -1,5 +1,14 @@
 ---
+name: doc-updater
 description: Detects drift between a source code file and its corresponding Markdown documentation, then proposes targeted edits to bring the docs in sync. Use when the user asks to update docs, sync documentation, or fix outdated documentation for a module or function.
+allowed-tools:
+  - Read
+  - Grep
+  - Edit
+  - Write
+scope: global
+portability: 100
+synthesis-required: false
 ---
 
 # Documentation Updater (Phase 1 MVP)

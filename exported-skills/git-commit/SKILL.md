@@ -1,5 +1,18 @@
 ---
+name: git-commit
 description: Creates a properly formatted conventional commit (feat, fix, chore, docs, refactor, test) with a clear subject line and optional body. Use when the user asks to commit changes, write a commit message, or push code to git.
+allowed-tools:
+  - Read
+  - Grep
+  - Bash(git status)
+  - Bash(git diff *)
+  - Bash(git add *)
+  - Bash(git commit *)
+  - Bash(git push *)
+  - Bash(git log *)
+scope: global
+portability: 100
+synthesis-required: false
 ---
 
 # Git Commit Skill

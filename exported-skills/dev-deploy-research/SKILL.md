@@ -1,5 +1,19 @@
 ---
-description: Parses a completed deep-research document, shows a confirmation summary, then creates the full file structure in dev/ideas/[your-idea-slug]/ (product track, 5 files) or dev/changes/[your-change-slug]/ (infra track, 2 files) and updates the registry in dev/README.md. Use when the user has completed research and wants to deploy it into the dev tracking system.
+name: dev-deploy-research
+description: "Parses a completed deep-research document, shows a confirmation summary, then creates the full file structure in dev/ideas/[your-idea-slug]/ (product track, 5 files) or dev/changes/[your-change-slug]/ (infra track, 2 files) and updates the registry in dev/README.md. Use when the user has completed research and wants to deploy it into the dev tracking system."
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
+  - Bash(ls *)
+  - Bash(mkdir -p *)
+maturity: experimental
+source-experiment: core
+evidence: "Exported from engineering-std on 2026-04-16. Not yet validated in independent systems."
+scope: global
+portability: 10
 synthesis-required: true
 blocked-refs:
   - dev/ideas/NNN-slug
@@ -7,6 +21,7 @@ blocked-refs:
   - dev/ideas/001-task-recurrence-feature
   - dev/changes/001-supabase-ssr-v2
   - JOURNEY.md
+  - /dev-research-prompt
 ---
 
 # Dev Deploy Research
