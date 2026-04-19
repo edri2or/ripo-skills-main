@@ -88,6 +88,35 @@ in the initial setup session: "Populate `src/agent/` with initial agent code and
 
 ---
 
+## [2026-04-19] Session-Start Hook and npm TypeScript Dev Toolchain
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `.claude/hooks/session-start.sh`, `.claude/settings.json`, `package.json`, `tsconfig.json`, `src/agent/index.ts` (prettier format), `docs/adr/0003-npm-typescript-dev-toolchain.md`
+**Objective**: Bootstrap the development environment for Claude Code on the web sessions by creating a `SessionStart` hook, and resolve the open item from the 2026-04-15 session to add `package.json` + `tsconfig.json`.
+
+### Actions Taken
+- Created `.claude/hooks/session-start.sh` — `SessionStart` hook that runs only in remote (`CLAUDE_CODE_REMOTE=true`) environments, ensures `/opt/node22/bin` is on PATH, and runs `npm install` to install dev dependencies.
+- Registered the hook in `.claude/settings.json` under `hooks.SessionStart`.
+- Created `package.json` with `@types/node`, `prettier`, and `typescript` as dev dependencies; added `typecheck` and `lint` npm scripts.
+- Created `tsconfig.json` with `CommonJS` module, `strict` mode, `@types/node` types, and `ignoreDeprecations: 6.0` to suppress the `moduleResolution=node` deprecation warning in TypeScript 6.x.
+- Applied `prettier --write` to `src/agent/index.ts` to bring it into conformance with the formatter.
+- Created `docs/adr/0003-npm-typescript-dev-toolchain.md` documenting the decision to add the npm dev toolchain.
+
+### Decisions Made
+- Hook is **synchronous** (no `async` JSON header) to guarantee dev dependencies are installed before the session's agent loop starts, preventing race conditions where `tsc` or `prettier` are invoked before `node_modules` exists.
+- Hook is **web-only** (`CLAUDE_CODE_REMOTE` guard) — local developers manage their own `npm install`.
+- `prettier` chosen as the formatter (already globally available at `/opt/node22/bin/prettier`) with no additional config file to keep setup minimal.
+- `ignoreDeprecations: "6.0"` used in `tsconfig.json` to silence the `moduleResolution=node10` deprecation warning; `module: CommonJS` + `moduleResolution: node` remains the correct choice for a `ts-node`-executed CJS module.
+
+### Decisions Closed
+- ✅ Open item from 2026-04-15: "Add `package.json` + `tsconfig.json` if the team wants to compile `src/agent/index.ts` to JS."
+
+### Open Items / Follow-ups
+- [ ] Consider switching `moduleResolution` to `bundler` or `node16` in a future TypeScript 7.x migration.
+- [ ] Add `eslint` with `@typescript-eslint` for lint-level code quality checks beyond formatting.
+
+---
+
 ## Entry Template
 
 ```

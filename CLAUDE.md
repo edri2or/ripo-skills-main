@@ -105,13 +105,15 @@ To bypass enforcement, a team lead must explicitly remove the "Required" status 
 | `routeIntent` | `(intent: string, skills: SkillMeta[], threshold?: number) => SkillMeta \| null` | Matches user intent to the best skill via Jaccard similarity on description tokens. |
 | `activateSkill` | `(skill: SkillMeta) => SkillFull` | Loads the full SKILL.md body for the matched skill (Progressive Disclosure). |
 
-The router is dependency-free (no npm packages) and can be run directly:
+The router is dependency-free (no runtime npm packages) and can be run directly:
 ```bash
 ts-node src/agent/index.ts "create a new API endpoint"
 ```
+
+Dev toolchain (`@types/node`, `prettier`, `typescript`) is installed via `npm install` — see `docs/adr/0003-npm-typescript-dev-toolchain.md`.
 
 ---
 
 ## Last Updated
 
-2026-04-15 — Claude Skills enterprise infrastructure implemented (see `docs/adr/0002-claude-skills-enterprise-infrastructure.md`)
+2026-04-19 — npm TypeScript dev toolchain added (`package.json`, `tsconfig.json`); SessionStart hook created for Claude Code on the web (see `docs/adr/0003-npm-typescript-dev-toolchain.md`)
