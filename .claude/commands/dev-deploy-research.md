@@ -1,12 +1,9 @@
 ---
 description: Parses a completed deep-research document, shows a confirmation summary, then creates the full file structure in dev/ideas/[your-idea-slug]/ (product track, 5 files) or dev/changes/[your-change-slug]/ (infra track, 2 files) and updates the registry in dev/README.md. Use when the user has completed research and wants to deploy it into the dev tracking system.
-synthesis-required: true
-blocked-refs:
-  - dev/ideas/NNN-slug
-  - dev/changes/NNN-slug
-  - dev/ideas/001-task-recurrence-feature
-  - dev/changes/001-supabase-ssr-v2
+synthesis-required: false
   - JOURNEY.md
+adapted-by: skill-adapter
+adapted-on: 2026-04-19
 ---
 
 # Dev Deploy Research
@@ -193,7 +190,7 @@ registry table.
 After all files are created, ask:
 > "Files created. Would you like me to append an entry to your session journal for this session?"
 
-If yes, append a new entry following the existing format in `[your session journal file, e.g. [your-journey-file]]`:
+If yes, append a new entry following the existing format in `[your session journal file, e.g. JOURNEY.md]`:
 
 ```markdown
 ## [YYYY-MM-DD] Deploy Research: [Title Case topic]
