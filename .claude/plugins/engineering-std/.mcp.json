@@ -1,0 +1,39 @@
+{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
+      "description": "Read, write, list, search, and inspect files in the local project directory."
+    },
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "description": "Manage issues, pull requests, comments, and file content from remote GitHub repositories."
+    },
+    "postgres": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-postgres", "${DATABASE_URL}"],
+      "env": {
+        "DATABASE_URL": "${DATABASE_URL}"
+      },
+      "description": "Execute read queries against the development PostgreSQL database to verify schema state and inspect data."
+    },
+    "deep-research": {
+      "command": "npx",
+      "args": ["-y", "mcherukara/claude-deep-research"],
+      "description": "Perform multi-step web searches (DuckDuckGo + Semantic Scholar) and synthesize findings into structured reports."
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "chromadb/mcp-server"],
+      "env": {
+        "CHROMA_HOST": "${CHROMA_HOST:-localhost}",
+        "CHROMA_PORT": "${CHROMA_PORT:-8000}"
+      },
+      "description": "Store and retrieve semantic embeddings of code snippets and architectural decisions for long-term project memory."
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "company-engineering-std",
+  "version": "1.0.0",
+  "description": "Standard engineering skills for enterprise workflows. Covers documentation updates, database migrations, feature scaffolding, safe refactoring, and conventional commits.",
+  "mcpServers": {
+    "$ref": "../.mcp.json"
+  },
+  "skills": [
+    "skills/git-commit/SKILL.md",
+    "skills/db-migration/SKILL.md",
+    "skills/doc-standard/SKILL.md",
+    "skills/doc-updater/SKILL.md",
+    "skills/scaffold-feature/SKILL.md",
+    "skills/safe-refactor/SKILL.md",
+    "skills/enterprise-feature-scaffold/SKILL.md"
+  ]
+}

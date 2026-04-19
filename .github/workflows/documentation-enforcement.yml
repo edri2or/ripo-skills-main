@@ -1,0 +1,31 @@
+name: Documentation Enforcement
+
+# Runs on every pull request to enforce the 4-layer documentation invariants.
+# This workflow MUST be configured as a Required Status Check in Branch Protection
+# settings to act as a hard merge gate.
+#
+# Enforced rules (mirrors policy/*.rego):
+#   - src/agent/ changed  ->  CLAUDE.md must be updated
+#   - src/ changed        ->  JOURNEY.md must be updated
+#   - infra/deps changed  ->  a new ADR must be added in docs/adr/
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  doc-policy-check:
+    name: Documentation Policy Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run documentation policy checks
+        run: |
+          python3 scripts/check_policies.py \
+            "${{ github.event.pull_request.base.sha }}" \
+            "${{ github.event.pull_request.head.sha }}"

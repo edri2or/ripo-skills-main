@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Grep",
+      "Glob",
+      "LS"
+    ],
+    "requireConfirmation": [
+      "Write",
+      "Edit",
+      "Bash"
+    ]
+  },
+  "theme": "default",
+  "plugins": [
+    "plugins/engineering-std",
+    "plugins/global"
+  ]
+}
