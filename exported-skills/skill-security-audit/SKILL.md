@@ -9,7 +9,7 @@ allowed-tools:
   - WebSearch
 maturity: experimental
 source-experiment: core
-evidence: "First use 2026-04-19."
+evidence: "First use 2026-04-19.. distributed 2026-04-19."
 ---
 
 # Skill Security Audit
