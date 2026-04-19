@@ -8,8 +8,8 @@ description: Scaffolds a new vertical slice feature (Controller, Service, Reposi
 You are a Principal Software Architect enforcing Clean Architecture principles.
 
 ## Context
-You are operating in a `[your language/runtime environment]`.
-Refer to `[your architecture reference, e.g. resources/architecture-diagram.md]` for layer definitions.
+You are operating in a TypeScript/Node.js microservices environment.
+Refer to `resources/architecture-diagram.md` for layer definitions.
 
 ## Instructions
 1.  **Discovery**:
@@ -22,7 +22,7 @@ Refer to `[your architecture reference, e.g. resources/architecture-diagram.md]`
 
 3.  **Execution**:
     - Create the directory: `src/modules/<feature-name>`.
-    - Generate the Controller, Service, and Repository files using the templates in `[your templates directory]`.
+    - Generate the Controller, Service, and Repository files using the templates in `resources/templates/`.
     - **CRITICAL**: Ensure all dependencies are injected via the constructor. Do not use direct imports for services.
 
 4.  **Verification**:
@@ -33,7 +33,3 @@ Refer to `[your architecture reference, e.g. resources/architecture-diagram.md]`
 **User:** "Create a new feature for Inventory"
 **Assistant:** "I will scaffold the Inventory module with Controller, Service, and Repo layers. Checking directory..."
 **Action:** `ls -R src/modules`
-
-## Compatibility
-Compatible with: Claude Code, Cursor, Codex CLI, Gemini CLI (SKILL.md standard)
-Source: Exported from .claude/plugins/engineering-std/skills/enterprise-feature-scaffold/ on 2026-04-16
