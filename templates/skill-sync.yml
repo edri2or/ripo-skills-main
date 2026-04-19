@@ -4,13 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'exported-skills/*/SKILL.md'
+      - '.claude/plugins/**/SKILL.md'
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    # Skip commits pushed by push-skills itself (already in ripo-skills-main)
-    if: "!startsWith(github.event.head_commit.message, 'chore: sync exported-skills/')"
 
     steps:
       - uses: actions/checkout@v4
@@ -20,11 +18,13 @@ jobs:
       - name: Detect new or changed skills
         id: detect
         run: |
-          CHANGED=$(git diff --name-only HEAD~1 HEAD -- 'exported-skills/*/SKILL.md' \
-            | sed 's|exported-skills/||;s|/SKILL\.md||' | tr '\n' ' ')
+          CHANGED=$(git diff --name-only HEAD~1 HEAD \
+            | grep -E '\.claude/plugins/.+/SKILL\.md$' \
+            | sed 's|.*/\([^/]*\)/SKILL\.md|\1|' \
+            | tr '\n' ' ')
           echo "skills=$CHANGED" >> $GITHUB_OUTPUT
 
-      - name: Sync to ripo-skills-main + post proof
+      - name: Sync to ripo-skills-main and post proof
         if: steps.detect.outputs.skills != ''
         env:
           RIPO_TOKEN: ${{ secrets.RIPO_SKILLS_MAIN_PAT }}
@@ -35,9 +35,11 @@ jobs:
           echo "|-------|----|--------|" >> $GITHUB_STEP_SUMMARY
 
           for SKILL in ${{ steps.detect.outputs.skills }}; do
-            echo "=== Syncing: $SKILL ==="
-            CONTENT=$(base64 -w0 "exported-skills/$SKILL/SKILL.md")
-            HASH=$(sha256sum "exported-skills/$SKILL/SKILL.md" | cut -d' ' -f1)
+            SKILL_PATH=$(find .claude/plugins -name "SKILL.md" -path "*/$SKILL/SKILL.md" | head -1)
+            [ -z "$SKILL_PATH" ] && echo "WARN: $SKILL not found, skipping" && continue
+
+            CONTENT=$(base64 -w0 "$SKILL_PATH")
+            HASH=$(sha256sum "$SKILL_PATH" | cut -d' ' -f1)
 
             BASE_SHA=$(curl -sf -H "Authorization: token $RIPO_TOKEN" \
               https://api.github.com/repos/edri2or/ripo-skills-main/git/refs/heads/main \
@@ -68,11 +70,10 @@ jobs:
               -d "{\"title\":\"sync($SKILL): from ${{ github.repository }}\",\"body\":\"**Skill:** \`$SKILL\`  \\n**Source:** ${{ github.repository }}  \\n**Commit:** ${{ github.sha }}  \\n**SHA256:** \`$HASH\`  \\n\\nbuild-skill + skill-templatizer will run on merge.\",\"head\":\"$BRANCH\",\"base\":\"main\"}" \
               | python3 -c "import sys,json; print(json.load(sys.stdin).get('html_url',''))")
 
-            # Post commit comment — proof link visible in source repo history
             curl -sf -X POST -H "Authorization: token $NOTIFY_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/comments" \
-              -d "{\"body\":\"✅ **Skill \`$SKILL\` synced to ripo-skills-main**\\n\\n→ $PR_URL\\n\\nSHA256: \`$HASH\`\"}"
+              -d "{\"body\":\"✅ **Skill \`$SKILL\` synced to ripo-skills-main**\\n\\n→ $PR_URL\\nSHA256: \`$HASH\`\"}"
 
             echo "✓ $SKILL → $PR_URL"
             echo "| \`$SKILL\` | [PR opened]($PR_URL) | \`${HASH:0:12}...\` |" >> $GITHUB_STEP_SUMMARY
