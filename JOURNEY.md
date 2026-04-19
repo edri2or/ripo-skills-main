@@ -18,7 +18,7 @@ physically blocks merges that violate documentation policies.
 
 ### Actions Taken
 - Verified the `GH_TOKEN` session variable has `admin: true` on the repo
-- Called `PUT https://api.github.com/repos/edri2or/project-life-107/branches/main/protection`
+- Called `PUT https://api.github.com/repos/edri2or/ripo-skills-main/branches/main/protection`
   with `required_status_checks.checks = [{"context": "Documentation Policy Check"}]`
 - Confirmed the API returned HTTP 200 with the active protection rule
 - Created this branch and PR to document the change per the JOURNEY.md policy

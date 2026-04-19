@@ -8,7 +8,7 @@ It defines the project's purpose, architectural boundaries, and hard rules that 
 
 ## Project Purpose
 
-`project-life-107` is a reference implementation of a **4-layer documentation enforcement system** for
+`ripo-skills-main` is a reference implementation of a **4-layer documentation enforcement system** for
 autonomous AI agent workflows. It demonstrates how Policy-as-Code (PaC) techniques can be applied to
 ensure that documentation never drifts from the codebase, preventing "cognitive hallucinations" in agents
 that rely on documentation as their operative memory.
@@ -18,7 +18,7 @@ that rely on documentation as their operative memory.
 ## Repository Architecture
 
 ```
-project-life-107/
+ripo-skills-main/
 ├── CLAUDE.md                        # THIS FILE — Layer 1: agent context
 ├── JOURNEY.md                       # Layer 3: session journal
 ├── src/                             # Source code (triggers doc enforcement)
