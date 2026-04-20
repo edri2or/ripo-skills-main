@@ -5,9 +5,20 @@ on:
     branches: [main]
     paths:
       - 'exported-skills/*/SKILL.md'
+  workflow_dispatch:
+    inputs:
+      skills:
+        description: 'Comma-separated skill names to distribute (blank = ALL)'
+        required: false
+        default: ''
+      target_repo:
+        description: 'Single enrolled repo to target (owner/repo) — blank = all enrolled repos'
+        required: false
+        default: ''
 
 jobs:
   self-install:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -118,13 +129,21 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 2
 
-      - name: Detect changed skills
+      - name: Detect skills to distribute
         id: detect
         run: |
-          CHANGED=$(git diff --name-only HEAD~1 HEAD \
-            | grep -E '^exported-skills/[^/]+/SKILL\.md$' \
-            | sed 's|exported-skills/\([^/]*\)/SKILL\.md|\1|' \
-            | tr '\n' ' ')
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -z "${{ inputs.skills }}" ]; then
+              CHANGED=$(ls exported-skills/ | tr '\n' ' ')
+            else
+              CHANGED=$(echo "${{ inputs.skills }}" | tr ',' ' ')
+            fi
+          else
+            CHANGED=$(git diff --name-only HEAD~1 HEAD \
+              | grep -E '^exported-skills/[^/]+/SKILL\.md$' \
+              | sed 's|exported-skills/\([^/]*\)/SKILL\.md|\1|' \
+              | tr '\n' ' ')
+          fi
           echo "skills=$CHANGED" >> $GITHUB_OUTPUT
           echo "Detected: $CHANGED"
 
@@ -133,6 +152,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RIPO_SKILLS_MAIN_PAT }}
           SKILLS: ${{ steps.detect.outputs.skills }}
+          TARGET_REPO: ${{ inputs.target_repo }}
         run: |
           python3 << 'EOF'
           import urllib.request, urllib.error, json, os, base64, re
@@ -256,22 +276,27 @@ jobs:
                   return {}, [msg]
 
           # Discover enrolled repos
-          enrolled = []
-          page = 1
-          while True:
-              repos, _ = gh('GET', f'/orgs/edri2or/repos?per_page=100&page={page}')
-              if not repos:
-                  break
-              for repo in repos:
-                  name = repo['full_name']
-                  if name == 'edri2or/ripo-skills-main':
-                      continue
-                  _, err = gh('GET', f'/repos/{name}/contents/.github/workflows/skill-sync.yml')
-                  if err is None:
-                      enrolled.append(name)
-              if len(repos) < 100:
-                  break
-              page += 1
+          target_repo = os.environ.get('TARGET_REPO', '').strip()
+          if target_repo:
+              enrolled = [target_repo]
+              print(f'Targeting single repo: {target_repo}', flush=True)
+          else:
+              enrolled = []
+              page = 1
+              while True:
+                  repos, _ = gh('GET', f'/orgs/edri2or/repos?per_page=100&page={page}')
+                  if not repos:
+                      break
+                  for repo in repos:
+                      name = repo['full_name']
+                      if name == 'edri2or/ripo-skills-main':
+                          continue
+                      _, err = gh('GET', f'/repos/{name}/contents/.github/workflows/skill-sync.yml')
+                      if err is None:
+                          enrolled.append(name)
+                  if len(repos) < 100:
+                      break
+                  page += 1
 
           print(f'Enrolled repos: {len(enrolled)}', flush=True)
 
