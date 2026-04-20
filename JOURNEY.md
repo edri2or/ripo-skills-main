@@ -261,6 +261,26 @@ in the initial setup session: "Populate `src/agent/` with initial agent code and
 
 ---
 
+## [2026-04-20] Governance Hardening — Skill Authoring Guide + enforce_admins
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `docs/skill-authoring.md`, `CLAUDE.md`, GitHub branch protection settings
+**Objective**: תעד את אילוצי כתיבת ה-skill שנחשפו בסשן, וחסום דחיפות ישירות ל-main לצמיתות.
+
+### Actions taken
+- נוצר `docs/skill-authoring.md` — מדריך מלא: frontmatter חובה, גבול `description` ≤ 250 תווים, טבלת ניקוד ניידות, זרימה end-to-end של שני הצינורות, טבלת failure modes. מוזג ב-PR #51.
+- נוספה הפניה ב-`CLAUDE.md` תחת Path Conventions.
+- הופעל `enforce_admins: true` על `main` דרך GitHub API (PUT branch protection, HTTP 200) — מונע דחיפות ישירות ל-main גם עם טוקן admin.
+
+### Decisions made
+- **`docs/skill-authoring.md` ולא סעיף ב-CLAUDE.md**: המידע ארוך מדי ל-CLAUDE.md (טבלאות, דוגמאות) — קובץ נפרד תחת `docs/` עם הפניה מ-CLAUDE.md הוא הפתרון הנכון.
+- **`enforce_admins: true` כעת ולא ב-ADR**: הבעיה כבר הוכחה בפועל (commit `c4793e7` עקף את branch protection); ADR 0008 תיעד את החריגה, הפעלת `enforce_admins` סוגרת אותה. לא נדרש ADR נפרד — זהו סגירת פרצה, לא החלטה ארכיטקטונית חדשה.
+
+### Open items / follow-ups
+- [ ] deduplication ב-`skill-contribute.yml`: אם skill קיים ב-`exported-skills/`, לתרום כ-update ולא לפתוח PR נוסף
+
+---
+
 ## Entry Template
 
 ```
