@@ -466,6 +466,33 @@ requires:
 
 ---
 
+## [2026-04-20] Fix sync gap — exported skills never reached ripo-skills-main's own commands
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `.claude/commands/industry-standard.md`, `.github/workflows/distribute-skills.yml`
+**Objective**: אבחון ותיקון חוסר סנכרון: סקילים שמגיעים מריפוזים אחרים (reverse pipeline) נתקעים ב-`exported-skills/` ואף פעם לא מגיעים ל-`.claude/commands/` של ripo-skills-main עצמו.
+
+### Actions Taken
+
+- זוהה שה-`/industry-standard` skill שנוצר בריפו אחר קיים ב-`exported-skills/industry-standard/SKILL.md` (portability 100/100) אבל לא הותקן כ-command בריפו הזה
+- נוסף job `self-install` ל-`distribute-skills.yml` שרץ במקביל ל-`distribute`: מוריד frontmatter וכותב גוף הסקיל ל-`.claude/commands/<skill>.md` ועושה commit+push בתוך ה-workflow
+- שני ה-jobs מפנים ל-`ref: github.sha` כדי שה-push של `self-install` לא יזיז את HEAD וישבש את `detect` של `distribute`
+- תוכן `.claude/commands/industry-standard.md` תוקן לתוכן הנכון מ-`exported-skills/`
+- נמחק SKILL.md שנוצר בטעות ב-`.claude/plugins/` (לא מיקום נכון — pipeline בלבד אחראי על זה)
+- נפתח PR #68
+
+### Decisions Made
+
+- **parallel jobs במקום sequential**: `self-install` ו-`distribute` רצים במקביל מאותו trigger — אין צורך ש-`distribute` יחכה ל-`self-install`, ו-SHA pinning מגן מ-race condition
+- **frontmatter stripping**: `.claude/commands/` מקבל רק את גוף הסקיל (ללא frontmatter) — בהתאם להתנהגות הקיימת של `distribute-skills.yml` לריפוזים אחרים
+
+### Open Items / Follow-ups
+
+- [ ] לאמת שה-`self-install` job עובד בפועל: לעשות merge ל-PR #68, לדחוף שינוי ל-`exported-skills/<skill>/SKILL.md` ולוודא שהוא מופיע ב-`.claude/commands/` אוטומטית
+- [ ] לשקול האם `self-install` צריך גם לטפל בסקילים שנמחקו מ-`exported-skills/` (כרגע מטפל רק בהוספה/עדכון)
+
+---
+
 ## Entry Template
 
 ```
