@@ -1,7 +1,7 @@
 ---
 # last-contributed: 2026-04-20
 name: stage1-bootstrap
-description: "Bootstraps [your-railway] project and [your-cloudflare] DNS for a new autonomous system. Writes bootstrap.yml, triggers it via workflow_dispatch, verifies E2E results, and documents in [your-journey-file]. Use when setting up Stage 1 infrastructure ([your-railway] + [your-cloudflare]) after /gcp-wif-bootstrap has completed."
+description: "Bootstraps [your-railway] + [your-cloudflare] DNS for a new autonomous project. Writes bootstrap.yml, triggers via workflow_dispatch, verifies E2E, and documents in [your-journey-file]. Use after /gcp-wif-bootstrap completes."
 allowed-tools:
   - Read
   - Edit
