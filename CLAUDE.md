@@ -117,4 +117,4 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`) is installed via `npm in
 
 ## Last Updated
 
-2026-04-20 — Full bidirectional skill pipeline built and verified; reverse pipeline (`skill-contribute.yml`) designed, hardened, and saved to `templates/`; PR #43 open for merge
+2026-04-20 — Reverse pipeline activated: skill-contribute.yml distributed 70/70; stage1-bootstrap end-to-end verified; ADR 0008 merged; PR flow enforced for all future changes
