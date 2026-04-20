@@ -59,7 +59,46 @@ It is the primary audit trail for autonomous agent activity.
 
 ### Open Items / Follow-ups
 
-- [ ] `project-context-snapshot` נשאר ב-70 ריפוז — לשקול מחיקה (נוצר לצורך בדיקה)
+- [x] `project-context-snapshot` נמחק מ-70/70 ריפוז + project-life-130 + exported-skills ✅
+
+---
+
+## [2026-04-20] Session Close — Reverse Pipeline + Adaptation Full Verification
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: סיכום סשן — ניקוי, תיעוד, סגירה
+**Objective**: מחיקת `project-context-snapshot` מכל המיקומים ותיעוד סגירת הסשן.
+
+### Actions Taken
+
+- נמחק `project-context-snapshot` מ-70/70 enrolled repos ✅ — אפס כשלים
+- נמחק מ-`project-life-130` (מקור) ✅
+- נמחק מ-`exported-skills/` ב-ripo-skills-main (ענף זה) ✅
+
+### סיכום הסשן המלא
+
+שני מחזורי בדיקה הושלמו:
+
+**מחזור 1 — changelog-generator (ניידות גבוהה)**
+- ציון: 85/100 → direct export (ללא synthesis)
+- PR #52 → auto-merge → 70/70 ✅
+- לקח: כשהסקיל נקי מreferences — כל הריפוז מקבלים content זהה (SHA זהה)
+
+**מחזור 2 — project-context-snapshot (ניידות נמוכה)**
+- ציון: 35/100 → synthesized (4 refs: JOURNEY.md, PRODUCT.md, Railway, Supabase)
+- PR #55 → auto-merge → 70/70 ✅
+- לקח: כל ריפו קיבל content שונה — SHAים שונים מוכיחים אדפטציה אמיתית
+
+**תובנה על גבולות האדפטציה**
+היוריסטיקות מכסות 10 patterns בלבד. ריפו ללא אף אחד מהם מקבל placeholder בלתי-פתור — סימן לבעל הריפו לא באג.
+
+### Completed ✅
+
+- [x] שני סקילים נוצרו, הופצו, ואומתו end-to-end
+- [x] Synthesis הוכח: 4 placeholders בתוכן מסונתז
+- [x] אדפטציה הוכחה: 3 ריפוז עם SHAים שונים
+- [x] ניקוי מלא: שני הסקילים נמחקו מכל המיקומים
+- [x] תיעוד: JOURNEY.md מעודכן, ענף `claude/journey-adaptation-test-verified` מוכן למיזוג
 
 ---
 
