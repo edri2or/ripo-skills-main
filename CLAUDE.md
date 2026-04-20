@@ -118,4 +118,4 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`) is installed via `npm in
 
 ## Last Updated
 
-2026-04-20 — Sync gap fix: added self-install job to distribute-skills.yml so exported skills auto-install to .claude/commands/ in ripo-skills-main; SHA pinning prevents race condition with distribute job
+2026-04-20 — workflow_dispatch added to distribute-skills.yml (2 inputs: skills, target_repo) for immediate full adaptation to newly-enrolled repos; Jest test suite added (44 tests: unit agent router + e2e GitHub API dispatch); PR #76
