@@ -8,6 +8,57 @@ It is the primary audit trail for autonomous agent activity.
 
 ---
 
+## [2026-04-20] workflow_dispatch + Jest Test Suite
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `.github/workflows/distribute-skills.yml`, `tests/`, `package.json`, `tsconfig.test.json`
+**Objective**: הוסף `workflow_dispatch` ל-`distribute-skills.yml` (לאדפטציה מידית לריפו חדש) + בנה test suite מלא.
+
+### Actions Taken
+
+- אומת שלוש טענות ארכיטקטורליות על pipeline ה-enrollment:
+  - `push-skills` מרשם ריפו דרך `skill-sync.yml` + סוד `RIPO_SKILLS_MAIN_PAT` ✅
+  - `push-skills` לא מעלה `skill-contribute.yml` (reverse pipeline נפרד) ✅
+  - סקילים שנדחפים ע"י `push-skills` לא עוברים אדפטציה (`build_resolution_map` רק ב-`distribute-skills.yml`) ✅
+  - `distribute-skills.yml` חסר `workflow_dispatch` — אין דרך לגרום לאדפטציה מידית ✅
+
+- נוסף `workflow_dispatch` ל-`distribute-skills.yml` עם שני inputs:
+  - `skills`: שמות מופרדים בפסיק (ריק = כל הסקילים מ-`exported-skills/`)
+  - `target_repo`: ריפו יעד ספציפי (ריק = כל enrolled repos)
+
+- `self-install` job קיבל `if: github.event_name == 'push'` — לא יוצר ~44 PRs בריצה ידנית
+
+- `detect` step ב-`distribute` job: `workflow_dispatch` עם skills ריק → `ls exported-skills/`, עם names → שימוש ישיר; `push` → git diff כרגיל
+
+- `TARGET_REPO` env var מועבר ל-Python script; Python מדלג על סריקת הארגון כשהוא מוגדר
+
+- הותקן Jest (`jest`, `@types/jest`, `ts-jest`) + נוצר `tsconfig.test.json` עם `"types": ["node", "jest"]`
+
+- נכתבו 44 בדיקות:
+  - `tests/unit/agent.test.ts` (24): `discoverSkills`, `routeIntent`, `activateSkill` — fixtures בתיקיית tmp + integration עם הריפו האמיתי
+  - `tests/e2e/distribute-workflow-dispatch.test.ts` (20): YAML content מקומי (11) + GitHub API metadata (4) + live dispatch via `PUSH_TARGET_TOKEN` (5) — 204 על ענף קיים, 422 על ref לא קיים
+
+### Decisions Made
+
+- **`self-install` push-only**: הרצת `self-install` על `workflow_dispatch` עם כל הסקילים הייתה פותחת ~44 PRs — תקורה לא סבירה. job זה רלוונטי רק כשסקיל חדש נדחף ל-main.
+- **Content tests קוראים מקובץ מקומי**: ה-`workflow_dispatch` לא על main עד למיזוג; קריאה מהקובץ המקומי בודקת את השינוי בפועל ולא תלויה במצב ה-branch ב-GitHub.
+- **Live dispatch tests מפנים לענף הfeature**: `EXISTING_BRANCH = claude/review-documentation-mfn7S` — GitHub מאפשר dispatch מענף שיש בו את ה-trigger; אחרי מיזוג יעבדו מ-main.
+- **2 intent tests תוקנו**: Jaccard routes "commit my code changes" ל-doc-updater (tokens "code"+"changes" מנצחים) — שונו ל-intents שמשקפים את האלגוריתם בפועל.
+
+### Completed ✅
+
+- [x] `workflow_dispatch` ב-`distribute-skills.yml` — 2 inputs, self-install guard, detect logic, TARGET_REPO
+- [x] Jest test suite — 44/44 עוברות (`npm test`)
+- [x] כל הקבצים committed ו-pushed ל-`claude/review-documentation-mfn7S`
+
+### Open Items / Follow-ups
+
+- [ ] מזג PR ידנית (ענף `claude/` — לא עובר auto-merge לפי Hard Rule #6)
+- [ ] אחרי מיזוג: עדכן `EXISTING_BRANCH` ב-e2e test ל-`main` (או הסר והשתמש ב-default branch)
+- [ ] שקול להוסיף `skill-contribute.yml` ל-`push-skills` כדי לסגור את הפער בין forward ו-reverse pipeline עבור ריפוזים חדשים
+
+---
+
 ## [2026-04-20] Adaptation Pipeline Verification — project-context-snapshot
 
 **Operator**: claude-sonnet-4-6 (autonomous agent)
