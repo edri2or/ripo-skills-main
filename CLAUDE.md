@@ -66,6 +66,7 @@ ripo-skills-main/
 3. **Never** merge a PR that modifies source code (`src/`) without appending an entry to `JOURNEY.md`.
 4. ADRs are **immutable** once accepted. To supersede an ADR, create a new one and mark the old one `Superseded`.
 5. All policy violations are caught by `policy/*.rego` and enforced via `.github/workflows/documentation-enforcement.yml` as a **required** status check.
+6. **Branch naming for skill PRs:** Any branch that adds or updates a skill and should be auto-merged via `auto-merge-sync.yml` **must** start with `sync/`. Branches using other prefixes (e.g. `claude/`, `feat/`) will be skipped by the auto-merge workflow and require manual merge.
 
 ---
 
