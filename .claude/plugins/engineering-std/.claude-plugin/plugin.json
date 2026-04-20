@@ -12,6 +12,7 @@
     "skills/doc-updater/SKILL.md",
     "skills/scaffold-feature/SKILL.md",
     "skills/safe-refactor/SKILL.md",
-    "skills/enterprise-feature-scaffold/SKILL.md"
+    "skills/enterprise-feature-scaffold/SKILL.md",
+    "skills/skill-request-parser/SKILL.md"
   ]
 }
