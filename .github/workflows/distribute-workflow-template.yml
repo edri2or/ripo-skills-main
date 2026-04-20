@@ -11,6 +11,7 @@ on:
     branches: [main]
     paths:
       - 'templates/workflows/skill-contribute.yml'
+      - '.github/workflows/distribute-workflow-template.yml'
 
 jobs:
   distribute:
