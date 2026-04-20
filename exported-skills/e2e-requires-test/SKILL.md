@@ -1,6 +1,6 @@
 ---
 name: e2e-requires-test
-description: End-to-end test skill for manifest-driven requires: block resolution. Each enrolled repo receives different content based on its actual file tree.
+description: "End-to-end test skill for manifest-driven requires: block resolution. Each enrolled repo receives different content based on its actual file tree."
 allowed-tools: Read, Bash, Glob, Grep
 source-experiment: core
 requires:
