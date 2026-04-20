@@ -14,6 +14,7 @@
     "skills/safe-refactor/SKILL.md",
     "skills/enterprise-feature-scaffold/SKILL.md",
     "skills/skill-request-parser/SKILL.md",
-    "skills/doc-research-planner/SKILL.md"
+    "skills/doc-research-planner/SKILL.md",
+    "skills/deep-research-prompt-builder/SKILL.md"
   ]
 }
