@@ -126,18 +126,28 @@ jobs:
               return body, count
 
           def parse_fm_requires(frontmatter_text, skill_name):
+              # Extract only the requires: block via regex before YAML-parsing.
+              # Parsing the whole frontmatter fails when other fields (e.g. description:)
+              # contain ": " substrings that YAML mistakes for nested keys.
+              block_match = re.search(
+                  r'^requires:\s*\n((?:[ \t]+[^\n]*\n?)*)',
+                  frontmatter_text, re.MULTILINE
+              )
+              if not block_match:
+                  return {}, []
+              requires_text = 'requires:\n' + block_match.group(1)
               if yaml is None:
                   return {}, []
               try:
-                  fm = yaml.safe_load(frontmatter_text)
-                  if not isinstance(fm, dict):
+                  parsed = yaml.safe_load(requires_text)
+                  if not isinstance(parsed, dict):
                       return {}, []
-                  raw = fm.get('requires') or {}
+                  raw = parsed.get('requires') or {}
                   if not isinstance(raw, dict):
                       raise ValueError(f'requires: must be a mapping, got {type(raw).__name__}')
                   return raw, []
               except Exception as e:
-                  msg = f'WARN: YAML parse error in {skill_name} frontmatter requires: block — {e}'
+                  msg = f'WARN: YAML parse error in {skill_name} requires: block — {e}'
                   print(msg, flush=True)
                   return {}, [msg]
 
