@@ -36,7 +36,7 @@ jobs:
           token = os.environ['GH_TOKEN']
           sha = '${{ github.sha }}'
           skills = '${{ steps.detect.outputs.skills }}'.split()
-          repo = 'edri2or/ripo-skills-main'
+          repo = '${{ github.repository }}'
           headers = {
               'Authorization': f'token {token}',
               'Accept': 'application/vnd.github+json',
@@ -51,6 +51,8 @@ jobs:
                   with urllib.request.urlopen(req) as r:
                       return json.loads(r.read()), None
               except urllib.error.HTTPError as e:
+                  detail = e.read().decode(errors='replace')
+                  print(f'  API {method} {path} → {e.code}: {detail[:200]}', flush=True)
                   return None, e.code
 
           for skill in skills:
@@ -60,7 +62,7 @@ jobs:
                   print(f'WARN: {src_path} not found', flush=True)
                   continue
 
-              raw = open(src_path).read()
+              raw = open(src_path, encoding='utf-8').read()
               if raw.startswith('---'):
                   parts = raw.split('---', 2)
                   body = parts[2].lstrip() if len(parts) >= 3 else raw
@@ -74,7 +76,7 @@ jobs:
                   'ref': f'refs/heads/{branch}', 'sha': sha
               })
 
-              existing, _ = gh('GET', f'/repos/{repo}/contents/{dst_path}?ref={branch}')
+              existing, _ = gh('GET', f'/repos/{repo}/contents/{dst_path}?ref=main')
               payload = {'message': f'chore: self-install {skill} from exported-skills',
                          'content': content_b64, 'branch': branch}
               if existing:
@@ -91,9 +93,12 @@ jobs:
                   'body': f'Auto-generated: installs `.claude/commands/{skill}.md` from `exported-skills/{skill}/SKILL.md`.\n\nDocumentation Policy Check will pass — only `.claude/commands/` is touched.',
                   'head': branch, 'base': 'main',
               })
-              if err or not pr:
-                  print(f'WARN: PR open failed or already exists ({err})', flush=True)
+              if err == 422:
+                  print(f'  PR already exists for {skill}, skipping', flush=True)
                   continue
+              if err or not pr:
+                  print(f'ERROR: PR open failed for {skill} ({err})', flush=True)
+                  sys.exit(1)
 
               pr_num = pr['number']
               print(f'  PR #{pr_num}: {pr["html_url"]}', flush=True)
