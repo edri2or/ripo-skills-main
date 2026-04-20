@@ -34,9 +34,9 @@ jobs:
           import urllib.request, urllib.error, json, os, base64, re
           try:
               import yaml
-              HAS_YAML = True
           except ImportError:
-              HAS_YAML = False
+              yaml = None
+              print('WARN: PyYAML not available — requires: blocks will be ignored', flush=True)
 
           token = os.environ['GH_TOKEN']
           skills = os.environ['SKILLS'].split()
@@ -56,8 +56,6 @@ jobs:
               except urllib.error.HTTPError as e:
                   return None, e.code
 
-          # Global fallback heuristics — used when a skill has no requires: block
-          # or for placeholders not declared in requires:
           HEURISTICS = {
               '[your-product-file]':  dict(files=['PRODUCT.md']),
               '[your-journey-file]':  dict(files=['JOURNEY.md', 'DEVLOG.md', 'NOTES.md']),
@@ -72,10 +70,9 @@ jobs:
           }
 
           def suffix_match(candidate, paths):
-              """Exact match first, then suffix match for monorepo layouts."""
               if candidate in paths:
                   return candidate
-              for p in sorted(paths):
+              for p in paths:
                   if p.endswith('/' + candidate):
                       return p
               return None
@@ -87,19 +84,16 @@ jobs:
               paths = {item['path'] for item in tree_data.get('tree', [])}
               resolved = {}
 
-              # Layer 1: per-skill manifest (requires: block from frontmatter)
-              # Supports unlimited custom placeholders with suffix matching
               if fm_requires:
                   for placeholder, candidates in fm_requires.items():
                       if isinstance(candidates, str):
                           candidates = [candidates]
                       for candidate in (candidates or []):
-                          match = suffix_match(str(candidate), paths)
+                          match = suffix_match(candidate, paths)
                           if match:
                               resolved[placeholder] = match
                               break
 
-              # Layer 2: global HEURISTICS fallback (only for unresolved placeholders)
               for placeholder, cfg in HEURISTICS.items():
                   if placeholder in resolved:
                       continue
@@ -131,23 +125,21 @@ jobs:
                   body = body.replace(f'<<<BLOCK_{i}>>>', block)
               return body, count
 
-          def parse_fm_requires(frontmatter_text, skill_name, warn_lines):
-              """Parse requires: block from YAML frontmatter. Returns dict or {}."""
-              if not HAS_YAML:
-                  return {}
+          def parse_fm_requires(frontmatter_text, skill_name):
+              if yaml is None:
+                  return {}, []
               try:
                   fm = yaml.safe_load(frontmatter_text)
                   if not isinstance(fm, dict):
-                      return {}
+                      return {}, []
                   raw = fm.get('requires') or {}
-                  if raw and not isinstance(raw, dict):
+                  if not isinstance(raw, dict):
                       raise ValueError(f'requires: must be a mapping, got {type(raw).__name__}')
-                  return raw
+                  return raw, []
               except Exception as e:
                   msg = f'WARN: YAML parse error in {skill_name} frontmatter requires: block — {e}'
                   print(msg, flush=True)
-                  warn_lines.append(msg)
-                  return {}
+                  return {}, [msg]
 
           # Discover enrolled repos
           enrolled = []
@@ -183,7 +175,8 @@ jobs:
               if raw.startswith('---'):
                   parts = raw.split('---', 2)
                   if len(parts) >= 2:
-                      fm_requires = parse_fm_requires(parts[1], skill, warn_lines)
+                      fm_requires, warns = parse_fm_requires(parts[1], skill)
+                      warn_lines.extend(warns)
                       if fm_requires:
                           print(f'  {skill}: manifest declares {len(fm_requires)} custom placeholder(s)', flush=True)
                   body = parts[2].lstrip() if len(parts) >= 3 else raw
