@@ -8,6 +8,93 @@ It is the primary audit trail for autonomous agent activity.
 
 ---
 
+## [2026-04-20] Harden skill-contribute.yml — /simplify Review Pass
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `templates/workflows/skill-contribute.yml`
+**Objective**: Apply security and reliability hardening to the reverse pipeline workflow before distribution.
+
+### Actions taken
+- Ran three parallel review agents (reuse / quality / efficiency) via `/simplify`
+- Rewrote all JSON payload construction from raw shell interpolation to `jq -n` (injection fix)
+- Added `BASE_SHA` validation — `exit 1` if empty or not 40 chars
+- Added HTTP status check on PUT before creating PR — `continue` on failure
+- Added `$RUN_ID` suffix to branch name — prevents same-day collision
+- Replaced N×`find` in loop with single pass + associative map
+- Replaced double `grep -oP` with Python regex + validation
+- Added `set -e` for early failure detection
+- Opened PR #43 (`claude/reverse-skill-pipeline-doc` → `main`)
+
+### Decisions made
+- **EXISTING_SHA GET kept**: GitHub Contents API requires SHA for updates — the GET is not TOCTOU, it's a protocol requirement; flagged as false positive in review.
+- **process_skill.py stays inline**: runs in enrolled repo checkout with no access to ripo-skills-main scripts — cross-repo sharing would require composite actions infrastructure not yet in place.
+
+### Open items / follow-ups
+- [ ] Merge PR #43 (manual — `claude/` prefix)
+- [ ] Distribute `templates/workflows/skill-contribute.yml` to all 70 enrolled repos via API (PUSH_TARGET_TOKEN ready)
+- [ ] Test reverse pipeline: push SKILL.md change in `project-life-130` → verify `sync/` PR opens in ripo-skills-main → auto-merge → 70/70 distribution
+- [ ] Add ADR for reverse pipeline (workflow change in enrolled repos)
+
+---
+
+## [2026-04-20] Full Skill Pipeline — Forward + Reverse Architecture
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `.github/workflows/`, `.claude/plugins/engineering-std/`, `exported-skills/`, `docs/adr/`, `CLAUDE.md`, `templates/workflows/`
+**Objective**: Build a complete bidirectional skill pipeline — forward (ripo-skills-main → enrolled repos) and reverse (enrolled repo → ripo-skills-main → all repos).
+
+### Forward Pipeline — Completed and Verified
+
+**Automation chain:**
+`.claude/plugins/**/SKILL.md` push → `auto-export-skills.yml` → `sync/` PR → `auto-merge-sync.yml` (+ Doc Policy gate) → `distribute-skills.yml` (with adapter) → `.claude/commands/<skill>.md` in all enrolled repos.
+
+**Changes made:**
+
+| Change | ADR | PR |
+|--------|-----|----|
+| `auto-merge-sync.yml` — restrict to `sync/` prefix only | 0004 | #28 |
+| CLAUDE.md Hard Rule #6 — `sync/` branch convention documented | — | #29 |
+| `auto-export-skills.yml` — added (triggers on `.claude/plugins/**/SKILL.md`) | 0005 | #31 |
+| `skill-adapter` embedded in `distribute-skills.yml` — resolves placeholders per repo | — | #33 |
+| `auto-export-skills.yml` glob fix: `*` → `**` | 0006 | #35 |
+| `auto-merge-sync.yml` — polling gate for Documentation Policy Check before merge | 0007 | #36 |
+
+**Skills created and end-to-end verified:**
+
+| Skill | Score | Action | PR | Verified in enrolled repos |
+|-------|-------|--------|----|---------------------------|
+| `skill-request-parser` | 85/100 | direct | #30 | ✅ 70/70 |
+| `doc-research-planner` | 100/100 | direct | #38 | ✅ 70/70 |
+| `deep-research-prompt-builder` | 100/100 | direct | #41 | ✅ 70/70 |
+
+**End-to-end test confirmed via API** (`PUSH_TARGET_TOKEN`): all 70 enrolled repos have `.claude/commands/deep-research-prompt-builder.md` — zero failures.
+
+### Reverse Pipeline — Designed, Not Yet Distributed
+
+**Goal:** Skill created in any enrolled repo → auto-contribute to `ripo-skills-main` → auto-merge → distribute to all other enrolled repos.
+
+**Architecture:**
+`skill-contribute.yml` (in enrolled repo) detects `.claude/plugins/**/SKILL.md` push → runs templatizer → creates `sync/<skill>-<date>` branch in `ripo-skills-main` → opens PR → existing `auto-merge-sync.yml` + `distribute-skills.yml` handle the rest.
+
+**Status:** `skill-contribute.yml` written and saved to `templates/workflows/skill-contribute.yml`. **Distribution to all 70 enrolled repos is the next step** (interrupted before push — session context limit reached).
+
+**Test case ready:** `stage1-bootstrap` skill exists in `edri2or/project-life-130` (`.claude/plugins/engineering-std/skills/stage1-bootstrap/SKILL.md`). Expected portability score: ~65/100 (Railway + Cloudflare + JOURNEY.md references trigger synthesis). Once `skill-contribute.yml` is distributed, a push to that skill will trigger the full reverse pipeline.
+
+### Key Technical Decisions
+
+- **`sync/` prefix convention**: only `auto-export-skills.yml` and `skill-contribute.yml` create `sync/` branches — all human/agent branches use other prefixes and require manual merge.
+- **Templatizer score threshold**: `< 80` → `synthesis-required: true`, placeholders replaced; `≥ 80` → direct export.
+- **Adapter in distribute**: `build_resolution_map(repo)` fetches the full file tree once per repo via `GET /git/trees/main?recursive=1` and resolves all placeholders in one pass — no extra API calls per placeholder.
+- **`source-repo` metadata**: added to `skill-contribute.yml` output so `ripo-skills-main` knows which repo originated each contributed skill.
+
+### Open Items
+- [ ] Distribute `skill-contribute.yml` to all 70 enrolled repos
+- [ ] Verify reverse pipeline with `stage1-bootstrap` from `project-life-130`
+- [ ] Add ADR for reverse pipeline (workflow change in enrolled repos)
+- [ ] Consider deduplication: if a skill name already exists in `exported-skills/`, contribute as update (SHA already handled) vs. new skill
+
+---
+
 ## [2026-04-15] Activate Branch Protection — Required Status Check on main
 
 **Operator**: claude-sonnet-4-6 (autonomous agent)
