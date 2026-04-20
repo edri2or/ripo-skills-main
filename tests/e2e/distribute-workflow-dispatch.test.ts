@@ -32,7 +32,8 @@ const TOKEN =
   process.env.GITHUB_TOKEN ||
   "";
 
-// Branch that has the workflow_dispatch changes and exists on GitHub
+// Branch that has the workflow_dispatch changes and exists on GitHub.
+// TODO: update to "main" (or remove) after PR #76 is merged and this branch is deleted.
 const FEATURE_BRANCH = "claude/review-documentation-mfn7S";
 
 // ---------------------------------------------------------------------------
@@ -59,10 +60,12 @@ function ghRequest(
         headers: {
           Authorization: `token ${TOKEN}`,
           Accept: "application/vnd.github+json",
-          "Content-Type": "application/json",
           "User-Agent": "ripo-skills-main-e2e-tests",
           ...(payload
-            ? { "Content-Length": Buffer.byteLength(payload) }
+            ? {
+                "Content-Type": "application/json",
+                "Content-Length": Buffer.byteLength(payload),
+              }
             : {}),
         },
       },
@@ -97,8 +100,8 @@ describe("distribute-skills.yml — local YAML content", () => {
     content = fs.readFileSync(WORKFLOW_PATH, "utf-8");
   });
 
-  it("file exists locally", () => {
-    expect(fs.existsSync(WORKFLOW_PATH)).toBe(true);
+  it("file path resolves to the expected workflow filename", () => {
+    expect(path.basename(WORKFLOW_PATH)).toBe(WORKFLOW_FILE);
   });
 
   it("contains workflow_dispatch trigger", () => {
@@ -139,8 +142,8 @@ describe("distribute-skills.yml — local YAML content", () => {
     expect(content).toContain("workflow_dispatch");
   });
 
-  it("blank skills input falls back to ls exported-skills/ (all skills)", () => {
-    expect(content).toContain("ls exported-skills/");
+  it("blank skills input iterates all exported-skills/ directories", () => {
+    expect(content).toContain("exported-skills/*/");
   });
 
   it("TARGET_REPO env var is passed from input to python script", () => {

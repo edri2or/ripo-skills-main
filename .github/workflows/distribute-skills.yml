@@ -127,14 +127,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 2
+          # push needs HEAD~1 for git diff; workflow_dispatch only needs HEAD
+          fetch-depth: ${{ github.event_name == 'push' && '2' || '1' }}
 
       - name: Detect skills to distribute
         id: detect
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             if [ -z "${{ inputs.skills }}" ]; then
-              CHANGED=$(ls exported-skills/ | tr '\n' ' ')
+              # List only directories that contain a SKILL.md (avoids stray plain files)
+              CHANGED=$(for d in exported-skills/*/; do
+                skill="${d#exported-skills/}"; skill="${skill%/}"
+                [ -f "exported-skills/$skill/SKILL.md" ] && printf '%s ' "$skill"
+              done)
             else
               CHANGED=$(echo "${{ inputs.skills }}" | tr ',' ' ')
             fi
@@ -152,6 +157,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.RIPO_SKILLS_MAIN_PAT }}
           SKILLS: ${{ steps.detect.outputs.skills }}
+          # On push events inputs.target_repo is undefined; GitHub coerces it to empty string
           TARGET_REPO: ${{ inputs.target_repo }}
         run: |
           python3 << 'EOF'

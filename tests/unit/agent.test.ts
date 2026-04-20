@@ -17,16 +17,14 @@ function makeSkillFile(
   name: string,
   fm: Record<string, string | string[]>,
   body = "# Body\n",
-): string {
+): void {
   const skillDir = path.join(dir, ".claude", "plugins", "test", "skills", name);
   fs.mkdirSync(skillDir, { recursive: true });
   const fmLines = Object.entries(fm).flatMap(([k, v]) =>
     Array.isArray(v) ? [`${k}:`, ...v.map((i) => `  - ${i}`)] : [`${k}: ${v}`],
   );
   const content = `---\n${fmLines.join("\n")}\n---\n\n${body}`;
-  const filePath = path.join(skillDir, "SKILL.md");
-  fs.writeFileSync(filePath, content);
-  return filePath;
+  fs.writeFileSync(path.join(skillDir, "SKILL.md"), content);
 }
 
 // ---------------------------------------------------------------------------
@@ -122,8 +120,9 @@ describe("discoverSkills", () => {
       path.join(dir, "SKILL.md"),
       "---\nname: real\ndescription: real\n---\n",
     );
-    expect(discoverSkills(tmp)).toHaveLength(1);
-    expect(discoverSkills(tmp)[0].name).toBe("real");
+    const result = discoverSkills(tmp);
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("real");
   });
 
   it("returns empty allowedTools when frontmatter field is absent", () => {
