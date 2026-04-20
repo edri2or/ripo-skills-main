@@ -32,9 +32,7 @@ const TOKEN =
   process.env.GITHUB_TOKEN ||
   "";
 
-// Branch that has the workflow_dispatch changes and exists on GitHub.
-// TODO: update to "main" (or remove) after PR #76 is merged and this branch is deleted.
-const FEATURE_BRANCH = "claude/review-documentation-mfn7S";
+const FEATURE_BRANCH = "main";
 
 // ---------------------------------------------------------------------------
 // GitHub API helper (node:https — no extra deps)
