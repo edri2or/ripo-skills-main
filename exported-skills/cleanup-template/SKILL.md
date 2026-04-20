@@ -2,12 +2,10 @@
 name: cleanup-template
 description: "Detaches a new project from its source template by replacing all template name references with the current project name. Use when cloning from any template and the repo still contains stale template references."
 allowed-tools:
-  - Read
+  - Bash
   - Grep
+  - Read
   - Edit
-  - Bash(git remote *)
-  - Bash(basename *)
-  - Bash(pwd)
 maturity: experimental
 source-experiment: core
 evidence: "First use 2026-04-17. Validated in project-life-103."
@@ -104,4 +102,4 @@ next project name automatically. The chain continues indefinitely without any ha
 
 ## Compatibility
 Compatible with: Claude Code, Cursor, Codex CLI, Gemini CLI (SKILL.md standard)
-Source: Included in project-life-126 template as of 2026-04-17
+Source: Included in project-life-130 template as of 2026-04-17
