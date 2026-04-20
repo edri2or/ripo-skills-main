@@ -1,0 +1,102 @@
+name: Distribute Workflow Template to Enrolled Repos
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (list repos without pushing)'
+        required: false
+        default: 'false'
+  push:
+    branches: [main]
+    paths:
+      - 'templates/workflows/skill-contribute.yml'
+      - '.github/workflows/distribute-workflow-template.yml'
+
+jobs:
+  distribute:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Distribute skill-contribute.yml to enrolled repos
+        env:
+          GH_TOKEN: ${{ secrets.PUSH_TARGET_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          python3 << 'EOF'
+          import urllib.request, urllib.error, json, os, base64
+
+          token = os.environ['GH_TOKEN']
+          dry_run = os.environ.get('DRY_RUN', 'false').lower() == 'true'
+          headers = {
+              'Authorization': f'token {token}',
+              'Accept': 'application/vnd.github+json',
+              'Content-Type': 'application/json',
+          }
+
+          def gh(method, path, data=None):
+              url = f'https://api.github.com{path}'
+              body = json.dumps(data).encode() if data else None
+              req = urllib.request.Request(url, headers=headers, data=body, method=method)
+              try:
+                  with urllib.request.urlopen(req) as r:
+                      return json.loads(r.read()), None
+              except urllib.error.HTTPError as e:
+                  return None, e.code
+
+          with open('templates/workflows/skill-contribute.yml', 'r') as f:
+              template_content = f.read()
+          content_b64 = base64.b64encode(template_content.encode()).decode()
+
+          # Discover enrolled repos (have skill-sync.yml)
+          enrolled = []
+          page = 1
+          while True:
+              repos, _ = gh('GET', f'/orgs/edri2or/repos?per_page=100&page={page}')
+              if not repos:
+                  break
+              for repo in repos:
+                  name = repo['full_name']
+                  if name == 'edri2or/ripo-skills-main':
+                      continue
+                  _, err = gh('GET', f'/repos/{name}/contents/.github/workflows/skill-sync.yml')
+                  if err is None:
+                      enrolled.append(name)
+              if len(repos) < 100:
+                  break
+              page += 1
+
+          print(f'Found {len(enrolled)} enrolled repos', flush=True)
+
+          if dry_run:
+              print('DRY RUN — repos that would receive skill-contribute.yml:')
+              for r in enrolled:
+                  print(f'  {r}')
+          else:
+              ok = 0
+              fail = 0
+              summary = ['## Workflow Template Distribution', '| Repo | Status |', '|------|--------|']
+              for repo in enrolled:
+                  existing, _ = gh('GET', f'/repos/{repo}/contents/.github/workflows/skill-contribute.yml')
+                  payload = {
+                      'message': 'chore: add skill-contribute workflow from ripo-skills-main',
+                      'content': content_b64,
+                  }
+                  if existing:
+                      payload['message'] = 'chore: update skill-contribute workflow from ripo-skills-main'
+                      payload['sha'] = existing['sha']
+                  _, err = gh('PUT', f'/repos/{repo}/contents/.github/workflows/skill-contribute.yml', payload)
+                  if err is None:
+                      ok += 1
+                      status = '✅'
+                  else:
+                      fail += 1
+                      status = f'❌ HTTP {err}'
+                  print(f'  {repo}: {status}', flush=True)
+                  summary.append(f'| `{repo}` | {status} |')
+
+              print(f'\nDone: {ok} succeeded, {fail} failed out of {len(enrolled)} repos', flush=True)
+              with open(os.environ.get('GITHUB_STEP_SUMMARY', '/dev/null'), 'a') as f:
+                  f.write('\n'.join(summary) + '\n')
+          EOF
