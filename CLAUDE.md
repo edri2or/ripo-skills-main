@@ -118,4 +118,4 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`) is installed via `npm in
 
 ## Last Updated
 
-2026-04-20 — Manifest-driven placeholder adaptation: requires: block + suffix_match() added to distribute-skills.yml; 2-layer resolution replaces fixed 10-heuristic ceiling; zero regression for existing skills
+2026-04-20 — E2E validation confirmed: regex-first requires: extraction (ADR 0010) fixes YAML-unsafe description bug; 7 unique SHAs across 70 repos prove per-repo suffix matching works including deep monorepo paths

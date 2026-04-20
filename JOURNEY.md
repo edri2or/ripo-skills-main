@@ -442,6 +442,55 @@ requires:
 
 ---
 
+## [2026-04-20] E2E Validation + YAML-Unsafe Bug Fix — requires: Resolution Proven
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `.github/workflows/distribute-skills.yml`, `docs/adr/0010-regex-requires-block-extraction.md`, `exported-skills/e2e-requires-test/SKILL.md`, `.claude/plugins/engineering-std/skills/e2e-requires-test/SKILL.md`
+**Objective**: בדיקת קצה לקצה של מנגנון `requires:` — גילוי ותיקון באג YAML שגרם לאפס פתרון, ואימות שכל ריפו מקבל תוכן שונה לפי עץ הקבצים שלו.
+
+### Actions Taken
+
+- נוצר `e2e-requires-test` skill עם 3 custom placeholders: `[your-policy-config]`, `[your-docker-file]`, `[your-deploy-config]` — הופץ ל-70 ריפוז
+- **ספוט-צ'ק #1 נכשל**: כל 70 הריפוז קיבלו SHA זהה `b6089f5a` — `requires:` resolution לא פעל
+- **גורם שורש**: `yaml.safe_load()` על כל הפרונטמאטר נכשל כאשר `description:` הכיל `requires: block` (colon-space) — PyYAML פירש זאת כ-nested key, זרק `"mapping values are not allowed here"`, החריג נתפס, הוחזר `{}` — אפס פתרון שקט
+- **תיקון**: החלפת `yaml.safe_load()` על כל הפרונטמאטר ב-regex-first extraction של `requires:` block בלבד ב-`parse_fm_requires()`
+- נוצר `docs/adr/0010-regex-requires-block-extraction.md` — מתעד הבאג והפתרון
+- הופעל rebase על `claude/e2e-requires-validation` לאחר קונפליקט add/add (quoted vs unquoted description) — PR #61 מוזג
+- **ספוט-צ'ק #2 עבר**: **7 SHAs שונים** מתוך 70 ריפוז ✅
+
+### ספוט-צ'ק — תוצאות (70 ריפוז)
+
+| Repo | SHA | Policy | Docker | Deploy |
+|------|-----|--------|--------|--------|
+| `salamtak` | `7931bee4` | `policy/journey.rego` | literal | `services/secret-sync-watcher/railway.json` |
+| `admin-builder` | `f76c95a3` | `.claude/skills/.../policy/journey.rego` | `.../Dockerfile` | literal |
+| `claude-admin` | `013565df` | `policy/journey.rego` | `service-template/Dockerfile` | literal |
+| `or-project25` (x3) | `12cbd5fa` | `policy/journey.rego` | `Dockerfile` | literal |
+| `claude-agent-life` | `d4c1bb3a` | literal | `Dockerfile` | `railway.json` |
+| `or-project38` (x6) | `e61d2edf` | literal | `Dockerfile` | literal |
+| 55 ריפוז | `b6089f5a` | literal | literal | literal |
+
+**suffix match הוכח**: `salamtak` קיבל `services/secret-sync-watcher/railway.json` (candidate: `railway.json`); `admin-builder` קיבל `policy/journey.rego` בתוך path עמוק.
+
+### Decisions Made
+
+- **Regex-first extraction ולא full YAML parse**: מחסן את `parse_fm_requires()` מכל תוכן YAML-unsafe בשדות אחרים בפרונטמאטר — הבאג יקרה שוב בכל `description:` שמכיל `: `
+- **quoted description בסקיל ה-E2E**: שינוי קטן שגרם לרה-distribute ואחר כך השוואת SHAs — טריק לאיפוס הבדיקה אחרי תיקון
+
+### Completed ✅
+
+- [x] באג `yaml.safe_load()` על פרונטמאטר מלא — תוקן בregex-first extraction
+- [x] ADR 0010 נכתב ומוזג
+- [x] PR #61 מוזג — `distribute-skills.yml` עם התיקון על main
+- [x] E2E spot-check #2: 7 SHAs שונים מתוך 70 ריפוז — הוכחה מלאה
+
+### Open Items / Follow-ups
+
+- [ ] מחיקת `e2e-requires-test` מ-70 ריפוז + `exported-skills/` לאחר אימות (optional — safe to leave as reference)
+- [ ] תעד את פורמט `requires:` ב-`docs/skill-authoring.md`
+
+---
+
 ## Entry Template
 
 ```
