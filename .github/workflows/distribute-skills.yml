@@ -1,4 +1,4 @@
-name: Distribute Skills to Enrolled Repos
+name: Distribute Skills to Enrolled Repos # test-doc-enforcement
 
 on:
   push:
