@@ -29,7 +29,10 @@ jobs:
           GH_TOKEN: ${{ secrets.PUSH_TARGET_TOKEN }}
           SKILLS: ${{ steps.detect.outputs.skills }}
           SOURCE_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
+          set -e
+
           cat > /tmp/process_skill.py << 'PYEOF'
           import sys, re, os
 
@@ -114,40 +117,75 @@ jobs:
             https://api.github.com/repos/edri2or/ripo-skills-main/git/refs/heads/main \
             | python3 -c "import sys,json; print(json.load(sys.stdin)['object']['sha'])")
 
+          if [ -z "$BASE_SHA" ] || [ "${#BASE_SHA}" -ne 40 ]; then
+            echo "ERROR: could not resolve main SHA for ripo-skills-main" >&2
+            exit 1
+          fi
+
+          # Build skill→path map in one find pass
+          declare -A SKILL_PATHS
+          while IFS= read -r -d '' path; do
+            name=$(basename "$(dirname "$path")")
+            SKILL_PATHS[$name]="$path"
+          done < <(find .claude/plugins -name "SKILL.md" -print0)
+
           for SKILL in $SKILLS; do
-            SKILL_PATH=$(find .claude/plugins -name "SKILL.md" -path "*/$SKILL/SKILL.md" | head -1)
-            [ -z "$SKILL_PATH" ] && echo "WARN: $SKILL not found" && continue
+            SKILL_PATH="${SKILL_PATHS[$SKILL]:-}"
+            if [ -z "$SKILL_PATH" ]; then
+              echo "WARN: $SKILL not found in .claude/plugins" >&2
+              continue
+            fi
 
             EXPORTED="/tmp/$SKILL-exported.md"
             OUT=$(SOURCE_REPO="$SOURCE_REPO" python3 /tmp/process_skill.py "$SKILL_PATH" "$EXPORTED")
-            SCORE=$(echo "$OUT" | grep -oP 'SCORE:\K[0-9]+')
-            ACTION=$(echo "$OUT" | grep -oP 'ACTION:\K\w+')
-            CONTENT=$(base64 -w0 "$EXPORTED")
+            SCORE=$(python3 -c "import re,sys; m=re.search(r'SCORE:(\d+)',sys.argv[1]); print(m.group(1) if m else '')" "$OUT")
+            ACTION=$(python3 -c "import re,sys; m=re.search(r'ACTION:(\w+)',sys.argv[1]); print(m.group(1) if m else '')" "$OUT")
 
-            BRANCH="sync/$SKILL-$(date -u +%Y-%m-%d)"
+            if [ -z "$SCORE" ] || [ -z "$ACTION" ]; then
+              echo "ERROR: templatizer output malformed for $SKILL: $OUT" >&2
+              continue
+            fi
+
+            CONTENT=$(base64 -w0 "$EXPORTED")
+            BRANCH="sync/$SKILL-$(date -u +%Y-%m-%d)-${RUN_ID}"
 
             curl -sf -X POST -H "Authorization: token $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               https://api.github.com/repos/edri2or/ripo-skills-main/git/refs \
-              -d "{\"ref\":\"refs/heads/$BRANCH\",\"sha\":\"$BASE_SHA\"}" > /dev/null 2>&1 || true
+              -d "$(jq -n --arg ref "refs/heads/$BRANCH" --arg sha "$BASE_SHA" \
+                    '{ref: $ref, sha: $sha}')" > /dev/null 2>&1 || true
 
             EXISTING_SHA=$(curl -sf -H "Authorization: token $GH_TOKEN" \
               "https://api.github.com/repos/edri2or/ripo-skills-main/contents/exported-skills/$SKILL/SKILL.md" \
               | python3 -c "import sys,json; print(json.load(sys.stdin).get('sha',''))" 2>/dev/null || echo "")
 
-            PAYLOAD="{\"message\":\"sync: contribute $SKILL from $SOURCE_REPO (score: $SCORE/100, $ACTION)\",\"content\":\"$CONTENT\",\"branch\":\"$BRANCH\""
-            [ -n "$EXISTING_SHA" ] && PAYLOAD="$PAYLOAD,\"sha\":\"$EXISTING_SHA\""
-            PAYLOAD="$PAYLOAD}"
+            PAYLOAD=$(jq -n \
+              --arg msg "sync: contribute $SKILL from $SOURCE_REPO (score: $SCORE/100, $ACTION)" \
+              --arg content "$CONTENT" \
+              --arg branch "$BRANCH" \
+              --arg sha "$EXISTING_SHA" \
+              'if $sha != "" then {message: $msg, content: $content, branch: $branch, sha: $sha}
+               else {message: $msg, content: $content, branch: $branch} end')
 
-            curl -sf -X PUT -H "Authorization: token $GH_TOKEN" \
+            HTTP=$(curl -s -o /tmp/put-response.json -w '%{http_code}' \
+              -X PUT -H "Authorization: token $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/edri2or/ripo-skills-main/contents/exported-skills/$SKILL/SKILL.md" \
-              -d "$PAYLOAD" > /dev/null
+              -d "$PAYLOAD")
+
+            if [ "$HTTP" != "200" ] && [ "$HTTP" != "201" ]; then
+              echo "ERROR: file write failed for $SKILL (HTTP $HTTP): $(cat /tmp/put-response.json)" >&2
+              continue
+            fi
 
             PR_URL=$(curl -sf -X POST -H "Authorization: token $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               https://api.github.com/repos/edri2or/ripo-skills-main/pulls \
-              -d "{\"title\":\"sync($SKILL): contribute from $SOURCE_REPO\",\"body\":\"**Skill:** \`$SKILL\`\\n**Source:** \`$SOURCE_REPO\`\\n**Portability:** $SCORE/100 ($ACTION)\\n\\nContributed by \`skill-contribute.yml\` — auto-merge will distribute to enrolled repos.\",\"head\":\"$BRANCH\",\"base\":\"main\"}" \
+              -d "$(jq -n \
+                    --arg title "sync($SKILL): contribute from $SOURCE_REPO" \
+                    --arg body "**Skill:** \`$SKILL\`\n**Source:** \`$SOURCE_REPO\`\n**Portability:** $SCORE/100 ($ACTION)\n\nContributed by \`skill-contribute.yml\` — auto-merge will distribute to enrolled repos." \
+                    --arg head "$BRANCH" \
+                    '{title: $title, body: $body, head: $head, base: "main"}')" \
               | python3 -c "import sys,json; print(json.load(sys.stdin).get('html_url',''))")
 
             echo "✓ $SKILL → ripo-skills-main: $PR_URL (score: $SCORE, $ACTION)"
