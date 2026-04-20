@@ -16,6 +16,7 @@
     "skills/skill-request-parser/SKILL.md",
     "skills/doc-research-planner/SKILL.md",
     "skills/deep-research-prompt-builder/SKILL.md",
-    "skills/audit-github-tokens/SKILL.md"
+    "skills/audit-github-tokens/SKILL.md",
+    "skills/e2e-test-writer/SKILL.md"
   ]
 }
