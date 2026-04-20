@@ -8,6 +8,100 @@ It is the primary audit trail for autonomous agent activity.
 
 ---
 
+## [2026-04-20] Adaptation Pipeline Verification — project-context-snapshot
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `edri2or/project-life-130` (external), `exported-skills/project-context-snapshot/SKILL.md` (auto-added via pipeline)
+**Objective**: בדיקה מאתגרת: יצירת סקיל ספציפי-ריפו (ציון < 80) לאימות תהליך ה-synthesis וה-adapter — הוכחה שכל ריפו מקבל תוכן שונה בהתאם למבנה הקבצים שלו.
+
+### Actions Taken
+
+- נבדקו 6 ריפוז לפני יצירת הסקיל — זיהוי שלושה ריפוז עם מבנה שונה לחלוטין: `ripo-ADHD`, `claude-agent-life`, `skill-creator-repo`
+- נוצר `.claude/plugins/engineering-std/skills/project-context-snapshot/SKILL.md` ב-`project-life-130` עם 4 refs מכוונים: `JOURNEY.md`, `PRODUCT.md`, `Railway`, `Supabase`
+- `skill-contribute.yml` הופעל — ציון ניידות: **35/100 (synthesized)**
+- PR #55 נפתח ומוזג אוטומטית תוך ~25 שניות
+- `distribute-skills.yml` הפיץ ל-70/70 enrolled repos ✅
+
+### Synthesis שנבדק (exported-skills)
+
+הtempltatizer החליף את כל ה-refs ב-placeholders:
+
+| מקור | placeholder |
+|------|-------------|
+| `JOURNEY.md` | `[your-journey-file]` |
+| `PRODUCT.md` | `[your-product-file]` |
+| `Railway` | `[your-railway]` |
+| `Supabase` | `[your-supabase]` |
+
+### אדפטציה שנוכחה ב-3 ריפוז
+
+| placeholder | `ripo-ADHD` | `claude-agent-life` | `skill-creator-repo` |
+|------------|-------------|---------------------|----------------------|
+| `[your-journey-file]` | → `JOURNEY.md` | נשאר | נשאר |
+| `[your-product-file]` | → `PRODUCT.md` | נשאר | נשאר |
+| `[your-railway]` | נשאר | → `railway.json` | נשאר |
+| `[your-supabase]` | → `supabase` | נשאר | נשאר |
+| SHA | `2b938b295429` | `6157fc6a7362` | `1c7958604659` |
+
+שלושה SHA שונים — הוכחה חד-משמעית שכל ריפו קיבל תוכן אחר.
+
+### Decisions Made
+
+- **בחירת ריפוז לspot-check**: נבדק מבנה קבצים של 6 ריפוז מראש — נבחרו 3 שמייצגים קצוות שונים (עשיר, חלקי, ריק)
+- **4 refs בכוונה**: נועדו לייצר maximal differentiation בין ריפוז ולא כסקיל לייצור
+
+### Completed ✅
+
+- [x] Synthesis: 35/100 → placeholders הוטמעו בכל 4 refs
+- [x] PR #55 → auto-merge תוך 25 שניות
+- [x] distribute-skills → 70/70 ✅
+- [x] אדפטציה הוכחה ב-3 ריפוז עם SHAים שונים
+
+### Open Items / Follow-ups
+
+- [x] `project-context-snapshot` נמחק מ-70/70 ריפוז + project-life-130 + exported-skills ✅
+
+---
+
+## [2026-04-20] Session Close — Reverse Pipeline + Adaptation Full Verification
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: סיכום סשן — ניקוי, תיעוד, סגירה
+**Objective**: מחיקת `project-context-snapshot` מכל המיקומים ותיעוד סגירת הסשן.
+
+### Actions Taken
+
+- נמחק `project-context-snapshot` מ-70/70 enrolled repos ✅ — אפס כשלים
+- נמחק מ-`project-life-130` (מקור) ✅
+- נמחק מ-`exported-skills/` ב-ripo-skills-main (ענף זה) ✅
+
+### סיכום הסשן המלא
+
+שני מחזורי בדיקה הושלמו:
+
+**מחזור 1 — changelog-generator (ניידות גבוהה)**
+- ציון: 85/100 → direct export (ללא synthesis)
+- PR #52 → auto-merge → 70/70 ✅
+- לקח: כשהסקיל נקי מreferences — כל הריפוז מקבלים content זהה (SHA זהה)
+
+**מחזור 2 — project-context-snapshot (ניידות נמוכה)**
+- ציון: 35/100 → synthesized (4 refs: JOURNEY.md, PRODUCT.md, Railway, Supabase)
+- PR #55 → auto-merge → 70/70 ✅
+- לקח: כל ריפו קיבל content שונה — SHAים שונים מוכיחים אדפטציה אמיתית
+
+**תובנה על גבולות האדפטציה**
+היוריסטיקות מכסות 10 patterns בלבד. ריפו ללא אף אחד מהם מקבל placeholder בלתי-פתור — סימן לבעל הריפו לא באג.
+
+### Completed ✅
+
+- [x] שני סקילים נוצרו, הופצו, ואומתו end-to-end
+- [x] Synthesis הוכח: 4 placeholders בתוכן מסונתז
+- [x] אדפטציה הוכחה: 3 ריפוז עם SHAים שונים
+- [x] ניקוי מלא: שני הסקילים נמחקו מכל המיקומים
+- [x] תיעוד: JOURNEY.md מעודכן, ענף `claude/journey-adaptation-test-verified` מוכן למיזוג
+
+---
+
 ## [2026-04-20] End-to-End Reverse Pipeline Verification — changelog-generator
 
 **Operator**: claude-sonnet-4-6 (autonomous agent)
