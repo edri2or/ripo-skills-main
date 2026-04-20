@@ -385,6 +385,63 @@ in the initial setup session: "Populate `src/agent/` with initial agent code and
 
 ---
 
+## [2026-04-20] Manifest-Driven Placeholder Adaptation — Unlimited Resolution
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `.github/workflows/distribute-skills.yml`
+**Objective**: הרחבת מנגנון האדפטציה מ-10 heuristics קשיחים לפתרון ללא הגבלה — כל סקיל מצהיר `requires:` block בפרונטמאטר עם רשימת קאנדידייטים לכל placeholder.
+
+### Actions Taken
+
+- הופעל `/skill-research` — זיהה manifest-driven כגישה המועדפת; שלל LLM ו-semantic matching מהדרך הקריטית (non-determinism + cost)
+- שונה `distribute-skills.yml`: הוסף `parse_fm_requires()`, `suffix_match()`, שכבת Layer 1 (requires:) לפני Layer 2 (HEURISTICS fallback)
+- אומת: `auto-export-skills.yml` כבר משמר `requires:` block ללא שינוי (meta injection מחליף רק את ה-closing `---`)
+
+### Architecture — 2-Layer Resolution
+
+```
+Layer 1: per-skill requires: (frontmatter)
+  → suffix matching: candidate in paths OR path.endswith('/'+candidate)
+  → מכסה מונורפוז ומבנים שרירותיים
+  → ללא הגבלה על מספר ה-placeholders
+
+Layer 2: global HEURISTICS fallback (10 patterns קיימים)
+  → רק עבור placeholders שלא נפתרו ב-Layer 1
+  → אפס regression לסקילים קיימים
+```
+
+### Format — requires: block
+
+```yaml
+---
+requires:
+  "[your-custom-placeholder]":
+    - path/to/exact/file.ts
+    - relative/suffix/also/works.ts
+  "[your-another]": single-file.json
+---
+```
+
+### Decisions Made
+
+- **LLM הוחרג מה-runtime path**: נשמר דטרמיניזם וזרו-עלות; LLM יכול לשמש כ-offline suggester ב-`skill-contribute.yml` בגרסה עתידית
+- **suffix match ולא regex**: מונע false positives; `sorted(paths)` מבטיח דטרמיניזם כשיש כמה matches
+- **YAML parse error → warning בלבד**: לא מפיל את כל ה-distribution; מופיע ב-GITHUB_STEP_SUMMARY תחת "⚠️ Warnings"
+- **`try: import yaml`**: graceful fallback אם PyYAML לא מותקן — ממשיך עם Layer 2 בלבד
+
+### Completed ✅
+
+- [x] `distribute-skills.yml` — Layer 1 (requires: + suffix match) + Layer 2 (HEURISTICS fallback)
+- [x] `auto-export-skills.yml` — אומת שמשמר `requires:` ללא שינוי
+- [x] אפס regression: סקילים קיימים ללא `requires:` ממשיכים לעבוד עם HEURISTICS
+
+### Open Items / Follow-ups
+
+- [ ] הוסף `requires:` suggester כ-LLM step ב-`skill-contribute.yml` (offline, human-review gate)
+- [ ] תעד את פורמט `requires:` ב-`docs/skill-authoring.md`
+
+---
+
 ## Entry Template
 
 ```
