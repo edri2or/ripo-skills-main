@@ -82,6 +82,7 @@ ripo-skills-main/
 | `scripts/` | CI helper scripts |
 | `.claude/settings.json` | Global Claude Code permission model |
 | `.claude/plugins/engineering-std/` | Standard engineering skills plugin (7 skills + 5 MCP servers) |
+| `docs/skill-authoring.md` | Skill authoring guide: frontmatter rules, portability scoring, failure modes |
 
 ---
 
