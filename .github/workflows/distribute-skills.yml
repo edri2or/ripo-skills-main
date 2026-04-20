@@ -31,7 +31,7 @@ jobs:
           SKILLS: ${{ steps.detect.outputs.skills }}
         run: |
           python3 << 'EOF'
-          import urllib.request, urllib.error, json, os, base64, sys
+          import urllib.request, urllib.error, json, os, base64, re
 
           token = os.environ['GH_TOKEN']
           skills = os.environ['SKILLS'].split()
@@ -51,7 +51,55 @@ jobs:
               except urllib.error.HTTPError as e:
                   return None, e.code
 
-          # Discover enrolled repos (have skill-sync.yml, exclude ripo-skills-main)
+          HEURISTICS = {
+              '[your-product-file]':  dict(files=['PRODUCT.md']),
+              '[your-journey-file]':  dict(files=['JOURNEY.md', 'DEVLOG.md', 'NOTES.md']),
+              '[your-agent-file]':    dict(files=['CLAUDE.md', 'AGENT.md', 'AI.md']),
+              '[your-registry-file]': dict(files=['REGISTRY.md', 'INDEX.md']),
+              '[your-railway]':       dict(files=['railway.json', 'railway.toml']),
+              '[your-vercel]':        dict(files=['vercel.json']),
+              '[your-prisma]':        dict(files=['prisma/schema.prisma']),
+              '[your-supabase]':      dict(dirs=['supabase']),
+              '[your-cloudflare]':    dict(files=['wrangler.toml', 'wrangler.json']),
+              '[your-typeorm]':       dict(files=['ormconfig.json', 'ormconfig.ts', 'typeorm.config.ts']),
+          }
+
+          def build_resolution_map(repo):
+              tree_data, err = gh('GET', f'/repos/{repo}/git/trees/main?recursive=1')
+              if err or not tree_data:
+                  return {}
+              paths = {item['path'] for item in tree_data.get('tree', [])}
+              resolved = {}
+              for placeholder, cfg in HEURISTICS.items():
+                  for f in cfg.get('files', []):
+                      if f in paths:
+                          resolved[placeholder] = f
+                          break
+                  if placeholder not in resolved:
+                      for d in cfg.get('dirs', []):
+                          if any(p.startswith(d + '/') for p in paths):
+                              resolved[placeholder] = d
+                              break
+              return resolved
+
+          def adapt(body, resolved):
+              if not resolved:
+                  return body, 0
+              saved = []
+              def save(m):
+                  saved.append(m.group(0))
+                  return f'<<<BLOCK_{len(saved)-1}>>>'
+              body = re.sub(r'```[\s\S]*?```', save, body)
+              count = 0
+              for placeholder, value in resolved.items():
+                  if placeholder in body:
+                      body = body.replace(placeholder, value)
+                      count += 1
+              for i, block in enumerate(saved):
+                  body = body.replace(f'<<<BLOCK_{i}>>>', block)
+              return body, count
+
+          # Discover enrolled repos
           enrolled = []
           page = 1
           while True:
@@ -71,7 +119,7 @@ jobs:
 
           print(f'Enrolled repos: {len(enrolled)}', flush=True)
 
-          summary_lines = ['## Distribution Results', '| Skill | Repo | Status |', '|-------|------|--------|']
+          summary_lines = ['## Distribution Results', '| Skill | Repo | Adapted | Status |', '|-------|------|---------|--------|']
 
           for skill in skills:
               skill_path = f'exported-skills/{skill}/SKILL.md'
@@ -80,28 +128,30 @@ jobs:
                   continue
 
               raw = open(skill_path).read()
-              # Strip YAML frontmatter for .claude/commands/
               if raw.startswith('---'):
                   parts = raw.split('---', 2)
                   body = parts[2].lstrip() if len(parts) >= 3 else raw
               else:
                   body = raw
 
-              body_b64 = base64.b64encode(body.encode()).decode()
-
               for repo in enrolled:
-                  existing, err = gh('GET', f'/repos/{repo}/contents/.claude/commands/{skill}.md')
+                  resolved = build_resolution_map(repo)
+                  adapted_body, subs = adapt(body, resolved)
+
+                  content_b64 = base64.b64encode(adapted_body.encode()).decode()
+                  existing, _ = gh('GET', f'/repos/{repo}/contents/.claude/commands/{skill}.md')
                   payload = {
                       'message': f'chore: distribute {skill} from ripo-skills-main',
-                      'content': body_b64,
+                      'content': content_b64,
                   }
                   if existing:
                       payload['sha'] = existing['sha']
 
                   _, err = gh('PUT', f'/repos/{repo}/contents/.claude/commands/{skill}.md', payload)
                   status = '✅' if err is None else f'❌ {err}'
-                  print(f'  {skill} → {repo}: {status}', flush=True)
-                  summary_lines.append(f'| `{skill}` | `{repo}` | {status} |')
+                  adapted_label = f'{subs} subs' if subs else '—'
+                  print(f'  {skill} → {repo}: {status} ({adapted_label})', flush=True)
+                  summary_lines.append(f'| `{skill}` | `{repo}` | {adapted_label} | {status} |')
 
           with open(os.environ.get('GITHUB_STEP_SUMMARY', '/dev/null'), 'a') as f:
               f.write('\n'.join(summary_lines) + '\n')
