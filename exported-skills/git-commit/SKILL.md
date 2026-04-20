@@ -67,10 +67,3 @@ leaked token. Refresh endpoint updated; old tokens are revoked immediately.
 Closes #118
 ```
 Then stages `src/auth/` files and commits.
-
-## Safety Rules
-
-1. **NEVER run `git push --force`** without explicit user instruction — force-push can destroy shared history.
-2. **NEVER run `git add -A` or `git add .`** blindly — always stage specific files to avoid committing secrets or large binaries.
-3. **NEVER pass `--no-verify`** — pre-commit hooks exist for a reason; if a hook fails, fix the root cause.
-4. **NEVER commit files containing secrets** (`.env`, credential files, private keys) — warn the user if any staged file looks like a credentials file.
