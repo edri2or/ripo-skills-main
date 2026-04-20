@@ -3,7 +3,7 @@ name: Auto-export skills to exported-skills/
 on:
   push:
     paths:
-      - '.claude/plugins/*/SKILL.md'
+      - '.claude/plugins/**/SKILL.md'
 
 jobs:
   export:
