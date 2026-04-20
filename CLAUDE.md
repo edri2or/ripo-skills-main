@@ -118,4 +118,4 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`) is installed via `npm in
 
 ## Last Updated
 
-2026-04-20 — Manifest-driven placeholder adaptation: requires: block + suffix_match() added to distribute-skills.yml; 2-layer resolution replaces fixed 10-heuristic ceiling; zero regression for existing skills
+2026-04-20 — e2e-test-writer skill added: framework-agnostic E2E test planner with human approval gate, revision loop, and /simplify hardening; PR #65 open for manual merge

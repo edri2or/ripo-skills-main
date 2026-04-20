@@ -442,6 +442,30 @@ requires:
 
 ---
 
+## [2026-04-20] New Skill — e2e-test-writer (research → build → simplify → PR)
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `.claude/plugins/engineering-std/skills/e2e-test-writer/SKILL.md`, `.claude/plugins/engineering-std/.claude-plugin/plugin.json`
+**Objective**: יצירת סקיל `e2e-test-writer` שחוקר flow, מזהה framework אוטומטית, מתכנן בדיקת E2E מקיפה, ומציג plan לאישור לפני כתיבת קוד.
+
+### Actions taken
+- הופעל `/skill-research` — 6 שאילתות מחקר; זוהו 4 פריורים (playwright-cli-agents, claude-code-test-runner, Metropolis multi-agent, E2EGen-AI)
+- הופעל `/build-skill` — נכתב SKILL.md עם 4 שלבים + 5 safety rules; routing verification vs safe-refactor: margin 0.27 ✅
+- הופעל `/simplify` — 3 review agents במקביל; 9 תיקונים יושמו (הסרת כפילויות, carry-forward note, relevance gate, revision loop, סדר template תוקן)
+- נפתח PR #65 ב-`claude/review-scale-sync-process-WJmnZ` → main
+
+### Decisions made
+- **Framework detection כ-Step 0 חובה**: הגדרת framework אינה ניתנת לתיקון בדיעבד — בדיקה שנכתבה ב-framework שגוי היא הטעות הכי יקרה ולכן היא hard stop ולא warning
+- **Revision loop ב-Step 3**: אישור חלקי ("כן אבל שנה X") הוא תרחיש נפוץ שהגרסה המקורית לא כיסתה — תוסף כ-explicit path כדי למנוע מהagent לכתוב קוד לפני קבלת אישור נקי
+- **ענף claude/ ולא sync/**: הסקיל נוצר בענף `claude/` ולא `sync/` — לפי Hard Rule #6 לא יעבור auto-merge ויידרש מיזוג ידני
+
+### Open items / follow-ups
+- [ ] מזג PR #65 ידנית (לא יעבור auto-merge — ענף `claude/`)
+- [ ] לאחר מיזוג: `distribute-skills.yml` יופעל ויפיץ `e2e-test-writer` ל-70 enrolled repos — בדוק spot-check בריפו אחד
+- [ ] בדיקות E2E ידניות של הסקיל עצמו אינן מתועדות — שקול להריץ את הסקיל על `skill-contribute` pipeline ולתעד תוצאות
+
+---
+
 ## Entry Template
 
 ```
