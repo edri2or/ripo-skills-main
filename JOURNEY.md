@@ -236,6 +236,31 @@ in the initial setup session: "Populate `src/agent/` with initial agent code and
 
 ---
 
+## [2026-04-20] Process Correction — PR Flow, validate Fix, and Pipeline Closure
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `JOURNEY.md`, `docs/adr/0008-reverse-skill-pipeline.md`, PR #47, PR #48, PR #49, PR #50
+**Objective**: סגור את כל הפריטים הפתוחים מסשן ההפצה: תקן validate ב-PR #47, הוצא ADR 0008, ותקן קונפליקט ב-PR #48.
+
+### Actions taken
+- תוקן PR #47 (`sync/stage1-bootstrap`): `validate` נכשל בגלל `description` ארוך מ-250 תווים (325→225) — נדחף fix ישירות לענף ה-sync, validate עבר, PR מוזג אוטומטית.
+- `distribute-skills` הפיץ `stage1-bootstrap` ל-70/70 ריפוז — אומת ב-spot-check.
+- ADR 0008 נכתב ונדחף בענף נקי `claude/adr-0008-reverse-pipeline` — PR #49 נפתח ומוזג (סוגר Hard Rule #2).
+- PR #48 (ענף הסשן הראשי) נסגר בגלל קונפליקט: תוכן כבר קיים ב-main מדחיפה ישירה.
+- PR #50 נפתח מ-`claude/journey-update-session-complete` עם עדכון JOURNEY.md בלבד — ממתין למיזוג ידני.
+
+### Decisions made
+- **ענף נקי לכל תוצר עצמאי**: כשקיים קונפליקט בענף ראשי, נכון יותר לסגור ולפתוח ענף חדש עם הדבר היחיד שחסר — ולא לנסות rebase על היסטוריה מסובכת.
+- **תיקון validate בענף sync מותר**: הענף עדיין פתוח ולא נגע ב-`src/` — דחיפת fix ישירות לענף ה-sync הכי מהיר לסגור את ה-PR לפני timeout של auto-merge.
+- **PR לכל שינוי — גם תיעוד**: הפסקת הדחיפות הישירות ל-main, כולל עדכוני JOURNEY.md. כל שינוי עובר דרך ענף + PR.
+
+### Open items / follow-ups
+- [ ] מזג PR #50 (`claude/journey-update-session-complete` → main) — JOURNEY.md עם תוצאות מלאות
+- [ ] שקול `enforce_admins: true` ב-branch protection — מונע דחיפות ישירות ל-main בעתיד
+- [ ] שקול לוגיקת deduplication: אם skill קיים ב-`exported-skills/`, להגיש כ-update ולא כ-new
+
+---
+
 ## Entry Template
 
 ```
