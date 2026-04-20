@@ -25,48 +25,90 @@ jobs:
           echo "skills=$CHANGED" >> $GITHUB_OUTPUT
           echo "Detected: $CHANGED"
 
-      - name: Install skills to .claude/commands/ via GitHub API
+      - name: Install skills to .claude/commands/ via auto-PR
         if: steps.detect.outputs.skills != ''
         env:
           GH_TOKEN: ${{ secrets.RIPO_SKILLS_MAIN_PAT }}
         run: |
-          for SKILL in ${{ steps.detect.outputs.skills }}; do
-            SRC="exported-skills/$SKILL/SKILL.md"
-            DST=".claude/commands/$SKILL.md"
-            [ -f "$SRC" ] || { echo "WARN: $SRC not found"; continue; }
-            CONTENT=$(python3 - "$SRC" << 'PYEOF'
-          import sys, base64
-          src = sys.argv[1]
-          content = open(src).read()
-          if content.startswith('---'):
-              parts = content.split('---', 2)
-              body = parts[2].lstrip() if len(parts) >= 3 else content
-          else:
-              body = content
-          print(base64.b64encode(body.encode()).decode())
+          python3 << 'PYEOF'
+          import os, sys, base64, json, subprocess, urllib.request, urllib.error
+
+          token = os.environ['GH_TOKEN']
+          sha = '${{ github.sha }}'
+          skills = '${{ steps.detect.outputs.skills }}'.split()
+          repo = 'edri2or/ripo-skills-main'
+          headers = {
+              'Authorization': f'token {token}',
+              'Accept': 'application/vnd.github+json',
+              'Content-Type': 'application/json',
+          }
+
+          def gh(method, path, data=None):
+              url = f'https://api.github.com{path}'
+              body = json.dumps(data).encode() if data else None
+              req = urllib.request.Request(url, headers=headers, data=body, method=method)
+              try:
+                  with urllib.request.urlopen(req) as r:
+                      return json.loads(r.read()), None
+              except urllib.error.HTTPError as e:
+                  return None, e.code
+
+          for skill in skills:
+              src_path = f'exported-skills/{skill}/SKILL.md'
+              dst_path = f'.claude/commands/{skill}.md'
+              if not os.path.exists(src_path):
+                  print(f'WARN: {src_path} not found', flush=True)
+                  continue
+
+              raw = open(src_path).read()
+              if raw.startswith('---'):
+                  parts = raw.split('---', 2)
+                  body = parts[2].lstrip() if len(parts) >= 3 else raw
+              else:
+                  body = raw
+
+              content_b64 = base64.b64encode(body.encode()).decode()
+              branch = f'auto/self-install-{skill}-{sha[:7]}'
+
+              gh('POST', f'/repos/{repo}/git/refs', {
+                  'ref': f'refs/heads/{branch}', 'sha': sha
+              })
+
+              existing, _ = gh('GET', f'/repos/{repo}/contents/{dst_path}?ref={branch}')
+              payload = {'message': f'chore: self-install {skill} from exported-skills',
+                         'content': content_b64, 'branch': branch}
+              if existing:
+                  payload['sha'] = existing['sha']
+
+              _, err = gh('PUT', f'/repos/{repo}/contents/{dst_path}', payload)
+              if err:
+                  print(f'ERROR: failed to write {skill} ({err})', flush=True)
+                  sys.exit(1)
+              print(f'  written: {dst_path} → {branch}', flush=True)
+
+              pr, err = gh('POST', f'/repos/{repo}/pulls', {
+                  'title': f'chore: self-install {skill} to .claude/commands/',
+                  'body': f'Auto-generated: installs `.claude/commands/{skill}.md` from `exported-skills/{skill}/SKILL.md`.\n\nDocumentation Policy Check will pass — only `.claude/commands/` is touched.',
+                  'head': branch, 'base': 'main',
+              })
+              if err or not pr:
+                  print(f'WARN: PR open failed or already exists ({err})', flush=True)
+                  continue
+
+              pr_num = pr['number']
+              print(f'  PR #{pr_num}: {pr["html_url"]}', flush=True)
+
+              result = subprocess.run(
+                  ['gh', 'pr', 'merge', str(pr_num), '--auto', '--squash',
+                   '--repo', repo],
+                  capture_output=True, text=True,
+                  env={**os.environ, 'GH_TOKEN': token}
+              )
+              if result.returncode == 0:
+                  print(f'  auto-merge enabled on #{pr_num}', flush=True)
+              else:
+                  print(f'  WARN: auto-merge not enabled: {result.stderr.strip()}', flush=True)
           PYEOF
-            )
-            EXISTING_SHA=$(curl -sf -H "Authorization: token $GH_TOKEN" \
-              "https://api.github.com/repos/edri2or/ripo-skills-main/contents/$DST" \
-              | python3 -c "import sys,json; print(json.load(sys.stdin).get('sha',''))" 2>/dev/null || echo "")
-            PAYLOAD=$(jq -n \
-              --arg msg "chore: self-install $SKILL from exported-skills" \
-              --arg content "$CONTENT" \
-              --arg sha "$EXISTING_SHA" \
-              'if $sha != "" then {message: $msg, content: $content, sha: $sha}
-               else {message: $msg, content: $content} end')
-            HTTP=$(curl -s -o /tmp/put-response.json -w '%{http_code}' \
-              -X PUT -H "Authorization: token $GH_TOKEN" \
-              -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/repos/edri2or/ripo-skills-main/contents/$DST" \
-              -d "$PAYLOAD")
-            if [ "$HTTP" = "200" ] || [ "$HTTP" = "201" ]; then
-              echo "  installed: $DST"
-            else
-              echo "ERROR: failed to install $SKILL (HTTP $HTTP): $(cat /tmp/put-response.json)" >&2
-              exit 1
-            fi
-          done
 
   distribute:
     runs-on: ubuntu-latest
