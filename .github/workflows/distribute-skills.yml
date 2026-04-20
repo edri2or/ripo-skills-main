@@ -9,8 +9,6 @@ on:
 jobs:
   self-install:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,36 +25,48 @@ jobs:
           echo "skills=$CHANGED" >> $GITHUB_OUTPUT
           echo "Detected: $CHANGED"
 
-      - name: Install skills to .claude/commands/ in this repo
+      - name: Install skills to .claude/commands/ via GitHub API
         if: steps.detect.outputs.skills != ''
+        env:
+          GH_TOKEN: ${{ secrets.RIPO_SKILLS_MAIN_PAT }}
         run: |
-          UPDATED=""
           for SKILL in ${{ steps.detect.outputs.skills }}; do
             SRC="exported-skills/$SKILL/SKILL.md"
             DST=".claude/commands/$SKILL.md"
             [ -f "$SRC" ] || { echo "WARN: $SRC not found"; continue; }
-            # Strip frontmatter (everything between the two --- fences) and write body only
-            python3 - "$SRC" "$DST" << 'PYEOF'
-          import sys, re
-          src, dst = sys.argv[1], sys.argv[2]
+            CONTENT=$(python3 - "$SRC" << 'PYEOF'
+          import sys, base64
+          src = sys.argv[1]
           content = open(src).read()
           if content.startswith('---'):
               parts = content.split('---', 2)
               body = parts[2].lstrip() if len(parts) >= 3 else content
           else:
               body = content
-          open(dst, 'w').write(body)
+          print(base64.b64encode(body.encode()).decode())
           PYEOF
-            echo "  installed: $DST"
-            UPDATED="$UPDATED $SKILL"
+            )
+            EXISTING_SHA=$(curl -sf -H "Authorization: token $GH_TOKEN" \
+              "https://api.github.com/repos/edri2or/ripo-skills-main/contents/$DST" \
+              | python3 -c "import sys,json; print(json.load(sys.stdin).get('sha',''))" 2>/dev/null || echo "")
+            PAYLOAD=$(jq -n \
+              --arg msg "chore: self-install $SKILL from exported-skills" \
+              --arg content "$CONTENT" \
+              --arg sha "$EXISTING_SHA" \
+              'if $sha != "" then {message: $msg, content: $content, sha: $sha}
+               else {message: $msg, content: $content} end')
+            HTTP=$(curl -s -o /tmp/put-response.json -w '%{http_code}' \
+              -X PUT -H "Authorization: token $GH_TOKEN" \
+              -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/repos/edri2or/ripo-skills-main/contents/$DST" \
+              -d "$PAYLOAD")
+            if [ "$HTTP" = "200" ] || [ "$HTTP" = "201" ]; then
+              echo "  installed: $DST"
+            else
+              echo "ERROR: failed to install $SKILL (HTTP $HTTP): $(cat /tmp/put-response.json)" >&2
+              exit 1
+            fi
           done
-          if [ -n "$UPDATED" ]; then
-            git config user.name  "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add .claude/commands/
-            git diff --cached --quiet || git commit -m "chore: self-install skills from exported-skills:$UPDATED"
-            git push
-          fi
 
   distribute:
     runs-on: ubuntu-latest
