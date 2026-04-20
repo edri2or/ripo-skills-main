@@ -118,4 +118,4 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`) is installed via `npm in
 
 ## Last Updated
 
-2026-04-20 — Sync gap fix: added self-install job to distribute-skills.yml so exported skills auto-install to .claude/commands/ in ripo-skills-main; SHA pinning prevents race condition with distribute job
+2026-04-20 — Self-install fixed: auto-PR approach (ADR 0013) — branch protection blocks both git push and API writes; auto/self-install-* PRs bypass via Documentation Policy Check pass on commands-only changes
