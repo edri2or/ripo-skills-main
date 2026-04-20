@@ -118,4 +118,4 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`) is installed via `npm in
 
 ## Last Updated
 
-2026-04-20 — Reverse pipeline activated: skill-contribute.yml distributed 70/70; stage1-bootstrap end-to-end verified; ADR 0008 merged; PR flow enforced for all future changes
+2026-04-20 — Manifest-driven placeholder adaptation: requires: block + suffix_match() added to distribute-skills.yml; 2-layer resolution replaces fixed 10-heuristic ceiling; zero regression for existing skills
