@@ -9,7 +9,7 @@ allowed-tools:
   - Edit
 maturity: experimental
 source-experiment: core
-evidence: "First use 2026-04-20."
+evidence: "First use 2026-04-20; self-install verified 2026-04-20."
 scope: global
 portability: 100
 synthesis-required: false
