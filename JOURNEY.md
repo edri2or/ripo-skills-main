@@ -8,6 +8,35 @@ It is the primary audit trail for autonomous agent activity.
 
 ---
 
+## [2026-04-20] Harden skill-contribute.yml — /simplify Review Pass
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `templates/workflows/skill-contribute.yml`
+**Objective**: Apply security and reliability hardening to the reverse pipeline workflow before distribution.
+
+### Actions taken
+- Ran three parallel review agents (reuse / quality / efficiency) via `/simplify`
+- Rewrote all JSON payload construction from raw shell interpolation to `jq -n` (injection fix)
+- Added `BASE_SHA` validation — `exit 1` if empty or not 40 chars
+- Added HTTP status check on PUT before creating PR — `continue` on failure
+- Added `$RUN_ID` suffix to branch name — prevents same-day collision
+- Replaced N×`find` in loop with single pass + associative map
+- Replaced double `grep -oP` with Python regex + validation
+- Added `set -e` for early failure detection
+- Opened PR #43 (`claude/reverse-skill-pipeline-doc` → `main`)
+
+### Decisions made
+- **EXISTING_SHA GET kept**: GitHub Contents API requires SHA for updates — the GET is not TOCTOU, it's a protocol requirement; flagged as false positive in review.
+- **process_skill.py stays inline**: runs in enrolled repo checkout with no access to ripo-skills-main scripts — cross-repo sharing would require composite actions infrastructure not yet in place.
+
+### Open items / follow-ups
+- [ ] Merge PR #43 (manual — `claude/` prefix)
+- [ ] Distribute `templates/workflows/skill-contribute.yml` to all 70 enrolled repos via API (PUSH_TARGET_TOKEN ready)
+- [ ] Test reverse pipeline: push SKILL.md change in `project-life-130` → verify `sync/` PR opens in ripo-skills-main → auto-merge → 70/70 distribution
+- [ ] Add ADR for reverse pipeline (workflow change in enrolled repos)
+
+---
+
 ## [2026-04-20] Full Skill Pipeline — Forward + Reverse Architecture
 
 **Operator**: claude-sonnet-4-6 (autonomous agent)

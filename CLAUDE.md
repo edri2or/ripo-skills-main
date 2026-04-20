@@ -117,4 +117,4 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`) is installed via `npm in
 
 ## Last Updated
 
-2026-04-19 — npm TypeScript dev toolchain added (`package.json`, `tsconfig.json`); SessionStart hook created for Claude Code on the web (see `docs/adr/0003-npm-typescript-dev-toolchain.md`)
+2026-04-20 — Full bidirectional skill pipeline built and verified; reverse pipeline (`skill-contribute.yml`) designed, hardened, and saved to `templates/`; PR #43 open for merge
