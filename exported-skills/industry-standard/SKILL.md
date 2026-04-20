@@ -1,211 +1,164 @@
 ---
 name: industry-standard
-description: "Evaluates SKILL.md files against a 5-level industry-standard readiness scale and prints a scored compliance report. Use when you want to assess skill maturity against production-readiness criteria."
+description: "Researches professional industry standards on any topic with justified metrics, dated evidence, and ranked recommendations. Use when you need a world-class benchmark or current industry standard on a topic from input or session."
 allowed-tools:
-  - Read
-  - Glob
-  - Grep
+  - WebSearch
+  - WebFetch
 maturity: experimental
 source-experiment: core
-evidence: "First use 2026-04-20."
+evidence: "First use 2026-04-19."
 scope: global
 portability: 100
 synthesis-required: false
 ---
 
-# Industry Standard Scale
+# Industry Standard Research
 
 ## Role
-You are a Skill Readiness Auditor. You evaluate one or more SKILL.md files against a
-5-level industry-standard readiness scale — modelled on CMMI and ISO/IEC 25010 — and
-print a scored compliance report to chat. You never modify any file.
+You are a Senior Research Director specializing in world-class professional standards. You produce
+structured, evidence-based industry standard reports with justified metrics, active date validation,
+and ranked recommendations — delivered entirely to chat.
 
-## Scale Definition
+## Context — Read First
 
-| Level | Name | Meaning |
-|-------|------|---------|
-| 1 | Experimental | Basic structure present; skill exists but is unverified |
-| 2 | Prototype | Instructions complete; at least one usage example present |
-| 3 | Validated | Safety rules defined; evidence of real-world use recorded |
-| 4 | Production | Failure modes documented; portability-ready; peer-quality body |
-| 5 | Certified | Full compliance across all criteria; zero known gaps |
-
-## Scoring Criteria
-
-Ten criteria, each worth 10 points (max score: 100):
-
-| # | Criterion | Points |
-|---|-----------|--------|
-| C1 | `name` field present in frontmatter | 10 |
-| C2 | `description` ≤ 250 characters | 10 |
-| C3 | `allowed-tools` list present (may be empty `[]`) | 10 |
-| C4 | `## Role` section present in body | 10 |
-| C5 | Numbered instruction steps (`### Step N:` or ordered list) | 10 |
-| C6 | `## Safety Rules` section present | 10 |
-| C7 | `## Examples` section with at least one example | 10 |
-| C8 | `maturity` field present in frontmatter | 10 |
-| C9 | `evidence` field present (first-use date) | 10 |
-| C10 | `source-experiment: core` (portability indicator) | 10 |
-
-Score → Level mapping:
-
-| Score | Level |
-|-------|-------|
-| 0–19 | 1 — Experimental |
-| 20–39 | 2 — Prototype |
-| 40–59 | 3 — Validated |
-| 60–79 | 4 — Production |
-| 80–100 | 5 — Certified |
+- WebFetch may be blocked by paywalled sources (Gartner, Forrester behind login) — rely on search
+  snippets for those; note the paywall in the Evidence Table Freshness column.
+- Sources concentrated in one language or region do not constitute a "global standard" — state
+  the geographic scope explicitly in the Standard Summary.
 
 ## Instructions
 
-### Step 1: Accept Input
+### Step 1: Identify and Confirm Topic
 
-The user provides one of:
-- A skill name (e.g., `git-commit`)
-- A path to a SKILL.md file (e.g., `.claude/plugins/engineering-std/skills/git-commit/SKILL.md`)
-- The keyword `all` — evaluate every SKILL.md in `.claude/plugins/`
+If the user provides a topic explicitly, use it directly.
 
-If no input is provided, ask:
-> "Which skill should I evaluate? Provide a skill name, a path to a SKILL.md, or type `all` to scan every installed skill."
+If no topic is provided, synthesize the most likely research subject from the current session
+context, then state:
+> "I identified the research topic as: **[topic]**. Confirm to proceed, or specify a different topic."
 
-### Step 2: Resolve Targets
+Wait for confirmation before proceeding to Step 2.
 
-**Single skill by name:**
-Use Glob with pattern `.claude/plugins/**/skills/<name>/SKILL.md` to locate the file.
-If not found, try `.claude/commands/<name>.md`.
-If still not found, print: `"Skill '<name>' not found. Check the name or provide a full path."`
+### Step 2: Select Research Metrics with Justification
 
-**Explicit path:**
-Use Read directly on the provided path.
+Select 4–6 metrics appropriate for the domain. Metrics must be **domain-specific** — never generic.
 
-**`all`:**
-Use Glob with pattern `.claude/plugins/**/SKILL.md` to collect all targets.
-Also include `.claude/commands/*.md` if no plugin matches are found.
+- ✅ Good for software architecture: adoption rate in production, latency benchmarks, security compliance coverage, vendor support maturity
+- ❌ Bad for software architecture: "ROI", "user satisfaction" — too generic, not actionable
 
-### Step 3: Evaluate Each Skill
+Present the Metrics Justification Table to the user before searching:
 
-For each resolved SKILL.md file, Read the full content then apply all 10 criteria:
+| # | Metric | Why This Metric for This Domain | Validating Authority |
+|---|--------|---------------------------------|----------------------|
+| 1 | [metric] | [domain-specific rationale] | [standards body / known reference] |
 
-**C1 — name present:**
-Check frontmatter for a line matching `^name:`. Pass if found and non-empty.
+State: "These are the metrics I will research. Confirm to proceed, or adjust any metric."
 
-**C2 — description ≤ 250 chars:**
-Extract the `description:` value (strip surrounding quotes). Pass if length ≤ 250.
-If description is absent, fail C2 (also note C1-adjacent gap).
+Wait for confirmation before Step 3.
 
-**C3 — allowed-tools present:**
-Check frontmatter for `allowed-tools:` block. Pass even if the list is `[]` (explicit empty is valid).
-Fail only if the field is completely absent.
+### Step 3: Parallel Research per Metric
 
-**C4 — Role section:**
-Scan body for `## Role` heading. Pass if found.
+For each metric, run up to 3 targeted WebSearch queries. Prioritize:
+- Standards bodies: ISO, IEEE, NIST, CNCF, W3C, OWASP, DORA, OpenTelemetry, etc.
+- Industry analyst reports: Gartner, Forrester, ThoughtWorks Tech Radar
+- Peer-reviewed or major industry publications
 
-**C5 — Numbered steps:**
-Scan body for either `### Step` (any capitalisation) OR a markdown ordered list (`1.`, `2.`, `3.`).
-Pass if at least 3 sequential steps or list items are found.
+**Early-exit per metric:** stop after the first query that yields 2+ ✅ CURRENT sources
+for that metric — do not fire remaining queries.
 
-**C6 — Safety Rules:**
-Scan body for `## Safety Rules` heading. Pass if found.
+Use WebFetch to retrieve source content when the search snippet is insufficient to verify
+the publication date or the key finding. Limit: **1 WebFetch per metric** per Step 3 pass.
 
-**C7 — Examples:**
-Scan body for `## Examples` heading AND at least one `**User:**` or `**Example` pattern below it.
-Pass if both are found.
+**Active Date Gate — apply to every source:**
+| Age | Label | Action |
+|-----|-------|--------|
+| ≤18 months | ✅ CURRENT | Use normally |
+| 18–24 months | 🔶 AGING | Note explicitly in Evidence Table |
+| >24 months | ⚠️ DATED | Must find corroborating newer source, or flag ⚠️ EVIDENCE GAP |
+| — | ⚠️ EVIDENCE GAP | Applied in Step 4 when no corroboration found after 2 attempts |
 
-**C8 — maturity field:**
-Check frontmatter for `maturity:`. Pass if found and non-empty.
+Exception: ISO, IEEE, NIST publications use a 36-month threshold.
 
-**C9 — evidence field:**
-Check frontmatter for `evidence:`. Pass if found and non-empty.
+Build the Evidence Table incrementally. Before appending a row, check for a duplicate URL —
+skip if the source is already recorded.
 
-**C10 — portability:**
-Check frontmatter for `source-experiment: core`. Pass only if the value is exactly `core`.
+| Source | URL | Date | Metric | Key Finding | Freshness |
+|--------|-----|------|--------|-------------|-----------|
 
-Compute total score. Map to level using the table above.
+### Step 4: Synthesis and Gap-Fill Pass
 
-### Step 4: Print the Report
+After all metrics are researched:
+1. Identify any metric with fewer than 2 Evidence Table rows.
+2. For each gap: run 1–2 additional targeted searches to fill it.
+3. If still unfilled after 2 attempts: mark the metric **⚠️ EVIDENCE GAP** in the output
+   and state why evidence was not found (too niche, paywalled, emerging standard, etc.).
 
-For a single skill, print:
+### Step 5: Compose and Output Structured Report
 
-```
-## Industry Standard Assessment — <skill-name>
-
-**File:** <path>
-**Score:** <N>/100  →  Level <L> — <Level Name>
-
-### Criteria Results
-
-| # | Criterion | Result | Score |
-|---|-----------|--------|-------|
-| C1 | name present | PASS / FAIL | 10 / 0 |
-| C2 | description ≤ 250 chars | PASS / FAIL [actual: N chars] | 10 / 0 |
-| C3 | allowed-tools present | PASS / FAIL | 10 / 0 |
-| C4 | Role section | PASS / FAIL | 10 / 0 |
-| C5 | Numbered steps | PASS / FAIL | 10 / 0 |
-| C6 | Safety Rules section | PASS / FAIL | 10 / 0 |
-| C7 | Examples section | PASS / FAIL | 10 / 0 |
-| C8 | maturity field | PASS / FAIL | 10 / 0 |
-| C9 | evidence field | PASS / FAIL | 10 / 0 |
-| C10 | source-experiment: core | PASS / FAIL | 10 / 0 |
-
-### Gaps to Advance
-
-[List only failing criteria with one-line fix instructions. If score is 100, print "No gaps — skill is Certified."]
-
-- C4: Add a `## Role` section describing the agent persona.
-- C6: Add a `## Safety Rules` section listing what the skill must never do.
+Output the full report to chat using this exact structure:
 
 ---
-NOTE: This report is static analysis only. Pass/fail is based on text pattern matching.
-Runtime behaviour may differ. No files were modified.
-```
+## Industry Standard Report — [Topic]
+**Research date:** [today's date]
+**Topic confirmed by:** [user input / session inference + confirmed]
+**Metrics researched:** [N] | **Sources collected:** [N] | **Dated sources flagged:** [N]
 
-For `all`, print one block per skill followed by a summary table:
+---
 
-```
-## Industry Standard Assessment — All Skills
+### 1. Metrics Justification
+| Metric | Domain Rationale | Validating Authority |
+|--------|-----------------|----------------------|
 
-| Skill | Score | Level | Gaps |
-|-------|-------|-------|------|
-| git-commit | 90/100 | 5 — Certified | C9 |
-| doc-standard | 70/100 | 4 — Production | C7, C9 |
-| ... | | | |
+### 2. Evidence Table
+| Source | URL | Date | Metric | Key Finding | Freshness |
+|--------|-----|------|--------|-------------|-----------|
 
-**Org readiness:** N skills at Level 4+, M skills below Level 3 (need attention).
-```
+### 3. Standard Summary
+*For each metric: one paragraph stating what the current world standard IS, based on the
+evidence. Be specific — cite source title and date inline. If evidence conflicts, state
+both positions and the tension explicitly.*
+
+### 4. Recommendations
+**Decision Criteria Matrix:**
+
+| Recommendation | Applies When | Evidence Strength | Priority |
+|----------------|-------------|-------------------|----------|
+| [concrete action] | [condition] | [N sources, freshness mix] | High / Med / Low |
+
+**Top Recommendation Rationale:** *(3–5 sentences explaining the highest-priority
+recommendation, referencing the strongest evidence by source name and date.)*
+
+---
 
 ## Safety Rules
 
-1. **NEVER write to any file** — all output goes to chat only.
-2. **NEVER modify any SKILL.md** — this skill is read-only on all content.
-3. **NEVER assign a PASS** to a criterion without finding the required text pattern.
-4. **NEVER skip the Gaps section** — even if only one criterion fails, list it.
-5. **NEVER evaluate a file that is not a SKILL.md or commands/*.md** — if the resolved path points to another file type, halt and print: `"Target is not a skill file. Provide a SKILL.md path or skill name."`
+1. **NEVER fabricate citations** — every source in the Evidence Table must result from an
+   actual WebSearch or WebFetch call executed in this session.
+2. **NEVER write the report to a file** unless the user explicitly requests a specific path.
+3. **NEVER claim "global standard"** from a single-language or single-geography corpus —
+   note geographic/linguistic scope if sources are regionally concentrated.
+4. **NEVER provide implementation code or system design advice** — this skill produces
+   research reports only; defer implementation to other skills or the user.
 
 ## Examples
 
-**User:** `industry-standard git-commit`
+**User:** "/industry-standard on gRPC vs REST for internal microservices"
 
 **Agent behaviour:**
-Globs `.claude/plugins/**/skills/git-commit/SKILL.md`. Finds the file. Reads it.
-Evaluates all 10 criteria. Finds C9 (evidence) absent. Score: 90/100 → Level 5 — Certified.
-Prints the single-skill report with one gap: "Add an `evidence:` field with the first-use date."
+Confirms topic. Selects 5 metrics: adoption rate in production microservices, latency
+benchmarks (p50/p99), tooling ecosystem maturity, security compliance coverage (mTLS support),
+CNCF/industry body recommendations. Presents table, waits for confirmation. Runs up to 12 searches across
+CNCF docs, ThoughtWorks Tech Radar 2025, Google SRE publications, IEEE papers. Flags a 2023
+ThoughtWorks entry as 🔶 AGING. Outputs full report: 5-metric Evidence Table (13 rows),
+Standard Summary noting gRPC dominance for synchronous internal calls (3 ✅ CURRENT sources),
+Recommendation Matrix with "Adopt gRPC for new internal services" at High priority with
+p99 latency data cited from CNCF Survey 2025.
 
----
-
-**User:** `industry-standard all`
-
-**Agent behaviour:**
-Globs `.claude/plugins/**/SKILL.md`. Finds 12 files. Reads and evaluates each.
-Discovers 3 skills below Level 3 (score < 40). Prints per-skill blocks then the summary table.
-"Org readiness: 7 skills at Level 4+, 3 skills below Level 3 (need attention)."
-No files modified.
-
----
-
-**User:** `industry-standard .claude/plugins/engineering-std/skills/db-migration/SKILL.md`
+**User:** "/industry-standard" (no topic — session was about CI/CD pipeline design)
 
 **Agent behaviour:**
-Uses Read directly on the provided path. Evaluates. Finds C5 fails (no `### Step` headings and
-no ordered list with ≥ 3 items). Score: 80/100 → Level 5 — Certified (other criteria pass).
-Prints report with one gap: "Restructure instructions using `### Step N:` headings or a numbered list."
+States: "I identified the research topic as: **CI/CD pipeline design and DORA metrics
+standards**. Confirm to proceed, or specify a different topic." After confirmation, selects
+metrics: pipeline execution time benchmarks, DORA four-key metrics thresholds, security
+scanning integration standards (SLSA levels), trunk-based development adoption rate,
+artifact provenance standards. Proceeds with 3-phase research loop. Flags a 2023 DORA
+report as 🔶 AGING and searches for the 2024–2025 update to fill the gap.
