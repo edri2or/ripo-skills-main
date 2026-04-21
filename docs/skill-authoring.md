@@ -87,7 +87,7 @@ push SKILL.md to .claude/plugins/**/SKILL.md in any enrolled repo
                  ├─ waits for Documentation Policy Check
                  └─ merges
                       └─ distribute-skills.yml triggers
-                           └─ pushes .claude/commands/<skill>.md to all 70 enrolled repos
+                           └─ pushes .claude/commands/<skill>.md to all enrolled repos
 ```
 
 ### Forward pipeline (ripo-skills-main → enrolled repos)
@@ -110,4 +110,5 @@ push SKILL.md to .claude/plugins/**/SKILL.md in ripo-skills-main
 | `validate` fails: `missing required field` | `name`, `description`, or `allowed-tools` absent | Add the missing field |
 | `skill-contribute.yml` not found in enrolled repo | Repo enrolled after last distribution | Re-run `distribute-workflow-template.yml` via `workflow_dispatch` |
 | PR not opened after push | Skill path doesn't match `.claude/plugins/**/SKILL.md` | Check directory structure and glob |
-| `distribute-skills` fails silently | `PUSH_TARGET_TOKEN` expired | Rotate the token in repository secrets |
+| Skill not delivered to branch-protected repo | Branch protection blocks direct push (422) | `distribute-skills.yml` opens a `sync/` PR automatically (ADR 0015) — merge the PR in the enrolled repo |
+| `distribute-skills` job fails with hard error | `RIPO_SKILLS_MAIN_PAT` expired or lacks `contents: write` + `pull-requests: write` | Rotate the token in repository secrets |

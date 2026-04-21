@@ -580,6 +580,29 @@ requires:
 
 ---
 
+## [2026-04-21] Fix distribute-skills silent failure — PR fallback for branch-protected repos
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: .github/workflows/distribute-skills.yml, docs/adr/0015-distribute-pr-fallback.md, JOURNEY.md, CLAUDE.md
+**Objective**: תקן את הכישלון השקט בפייפליין הפצת הסקילים — כש-PUT נחסם על-ידי branch protection, במקום ❌ שקט פתח PR עם PAT.
+
+### Actions taken
+- הוספת PR fallback ל-`distribute-skills.yml`: כש-PUT מחזיר 422, יצירת ענף `sync/distribute-{skill}-{YYYYMMDD}` בריפו היעד, כתיבת הקובץ לענף, פתיחת PR עם PAT — הchecks של הריפו מופעלים כרגיל
+- הוספת `hard_failures` counter + `sys.exit(1)` בסוף הלולאה — שגיאות שאי-אפשר להתאושש מהן מסמנות את ה-job כנכשל במקום green שקט
+- נוצר ADR 0015 (`docs/adr/0015-distribute-pr-fallback.md`) כדי לעמוד בדרישת Documentation Policy Check
+- נפתח PR #81 ל-`main`
+
+### Decisions made
+- **PR fallback ולא retry על 422**: דחיפה ישירה לריפו עם branch protection תיכשל תמיד; PR על ענף `sync/` (כנדרש ב-Hard Rule #6) הוא הנתיב היחיד שמפעיל checks ואפשר auto-merge — מאושר על-ידי Flux CD / ArgoCD כ-GitOps standard
+- **Hard fail surfacing**: green שקט עם ❌ בלוגים גרוע מ-job נכשל גלוי — כל שגיאה בלתי-ניתנת לתיקון יוצאת ב-`sys.exit(1)`
+
+### Open items / follow-ups
+- [ ] מזג PR #81 כדי שהתיקון יכנס לתוקף בכל הריפוזים enrolled
+- [ ] תקן `skill-sync.yml` בריפוזים enrolled: החלף `GH_TOKEN: ${{ github.token }}` ב-PAT לgit push וליצירת PR — `github.token` לא מפעיל `pull_request` workflow events (שורש הבעיה של project-life-130 שDocs Enforcement לא רץ לבד)
+- [ ] עדכן `templates/skill-sync.yml` ב-ripo-skills-main כך שריפוזים enrolled עתידיים מקבלים את ה-PAT reference הנכון מהתחלה
+
+---
+
 ## Entry Template
 
 ```
