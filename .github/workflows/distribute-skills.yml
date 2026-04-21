@@ -161,7 +161,7 @@ jobs:
           TARGET_REPO: ${{ inputs.target_repo }}
         run: |
           python3 << 'EOF'
-          import urllib.request, urllib.error, json, os, base64, re
+          import urllib.request, urllib.error, json, os, base64, re, sys, datetime
           try:
               import yaml
           except ImportError:
@@ -306,6 +306,7 @@ jobs:
 
           print(f'Enrolled repos: {len(enrolled)}', flush=True)
 
+          hard_failures = 0
           summary_lines = ['## Distribution Results', '| Skill | Repo | Adapted | Status |', '|-------|------|---------|--------|']
           warn_lines = []
 
@@ -342,8 +343,50 @@ jobs:
                       payload['sha'] = existing['sha']
 
                   _, err = gh('PUT', f'/repos/{repo}/contents/.claude/commands/{skill}.md', payload)
-                  status = '✅' if err is None else f'❌ {err}'
                   adapted_label = f'{subs} subs' if subs else '—'
+                  if err is None:
+                      status = '✅'
+                  elif err == 422:
+                      # Branch protection active — PR fallback
+                      date_tag = datetime.datetime.utcnow().strftime('%Y%m%d')
+                      fb_branch = f'sync/distribute-{skill}-{date_tag}'
+                      repo_info, _ = gh('GET', f'/repos/{repo}')
+                      default_branch = (repo_info or {}).get('default_branch', 'main')
+                      ref_data, ref_err = gh('GET', f'/repos/{repo}/git/ref/heads/{default_branch}')
+                      if ref_err or not ref_data:
+                          status = f'❌ ref-fetch-failed ({ref_err})'
+                          hard_failures += 1
+                      else:
+                          base_sha = ref_data['object']['sha']
+                          gh('POST', f'/repos/{repo}/git/refs', {
+                              'ref': f'refs/heads/{fb_branch}', 'sha': base_sha
+                          })  # 422 = already exists — OK, continue
+                          fb_payload = {k: v for k, v in payload.items() if k != 'sha'}
+                          fb_payload['branch'] = fb_branch
+                          existing_fb, _ = gh('GET', f'/repos/{repo}/contents/.claude/commands/{skill}.md?ref={fb_branch}')
+                          if existing_fb:
+                              fb_payload['sha'] = existing_fb['sha']
+                          _, write_err = gh('PUT', f'/repos/{repo}/contents/.claude/commands/{skill}.md', fb_payload)
+                          if write_err:
+                              status = f'❌ branch-write-failed ({write_err})'
+                              hard_failures += 1
+                          else:
+                              pr_data, pr_err = gh('POST', f'/repos/{repo}/pulls', {
+                                  'title': f'chore: distribute {skill} from ripo-skills-main',
+                                  'body': f'Auto-generated: distributes `.claude/commands/{skill}.md` from ripo-skills-main.\n\nDirect push blocked by branch protection — opening PR instead.',
+                                  'head': fb_branch, 'base': default_branch,
+                              })
+                              if pr_err is None and pr_data:
+                                  pr_num = pr_data['number']
+                                  status = f'⚠️ PR #{pr_num} → {pr_data["html_url"]}'
+                              elif pr_err == 422:
+                                  status = '⚠️ PR already open'
+                              else:
+                                  status = f'❌ pr-open-failed ({pr_err})'
+                                  hard_failures += 1
+                  else:
+                      status = f'❌ {err}'
+                      hard_failures += 1
                   print(f'  {skill} → {repo}: {status} ({adapted_label})', flush=True)
                   summary_lines.append(f'| `{skill}` | `{repo}` | {adapted_label} | {status} |')
 
@@ -352,4 +395,8 @@ jobs:
 
           with open(os.environ.get('GITHUB_STEP_SUMMARY', '/dev/null'), 'a') as f:
               f.write('\n'.join(summary_lines) + '\n')
+
+          if hard_failures:
+              print(f'\n❌ {hard_failures} hard failure(s) — see Distribution Results above', flush=True)
+              sys.exit(1)
           EOF
