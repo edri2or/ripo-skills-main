@@ -544,6 +544,42 @@ requires:
 
 ---
 
+## [2026-04-21] add optimization-feasibility skill with PRR checklist and HITL gate
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `.claude/plugins/engineering-std/skills/optimization-feasibility/SKILL.md`,
+           `.claude/plugins/engineering-std/.claude-plugin/plugin.json`
+**Objective**: בנה סקיל חדש לבדיקת היתכנות אופטימיזציה מבוסס מסקנות סשן, כולל
+              4-criteria PRR checklist, confidence scoring, ו-HITL checkpoint.
+
+### Actions taken
+- נוצר `optimization-feasibility/SKILL.md` ב-`engineering-std` plugin — 4-criteria
+  PRR checklist (impact / reversibility / risk / next-skill), confidence scoring
+  (0.25–1.0), HITL trigger על `confidence < 0.7` או `risk = high`, פלט dual-format
+  (structured JSON + human-readable summary)
+- נוסף `skills/optimization-feasibility/SKILL.md` ל-`plugin.json` (13 סקילים כעת)
+- Pushed ל-`claude/review-scaling-optimization-nmvlY`
+
+### Decisions made
+- **JSON schema mandatory over free text input**: מחקר `/skill-research` גילה ש-LLMs
+  יוצרים inferred state חדש בכל call — קלט טקסט חופשי אינו רפרודוקטיבי; נדרש schema
+  עם 4 שדות קבועים (`goal`, `open_items`, `decisions_made`, `confidence_score`)
+- **4-criteria PRR ולא TELOS 5-dimension**: מודל TELOS מיועד לפרויקטים גדולים; עבור
+  agent skill הקריטריונים הרלוונטיים הם impact/reversibility/risk/next-skill —
+  כל מה שניתן לאמת מתוך session state בלבד
+- **HITL risk-based ולא hard gate**: מחקר `/industry-standard` (EU AI Act + NIST AI RMF)
+  אישר ש-HITL צריך להיות מדוד לפי consequence — auto-proceed על go בconfidence גבוה,
+  HITL רק על no-go / high-risk
+
+### Open items / follow-ups
+- [ ] הסקיל על ענף `claude/` — דורש מיזוג ידני (Hard Rule #6: ענפי `claude/` לא
+      עוברים auto-merge; יש לשנות prefix ל-`sync/` או למזג ידנית)
+- [ ] שקול להרחיב את `session-end` output schema בשדות `risk_level` ו-
+      `recommended_next_skill` — יאפשר pipe ישיר בין שני הסקילים ללא עיצוב ידני
+- [ ] ייצא ל-`exported-skills/` ודחוף לריפוזים enrolled לאחר אישור המיזוג
+
+---
+
 ## Entry Template
 
 ```

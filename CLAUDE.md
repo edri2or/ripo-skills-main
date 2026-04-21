@@ -118,4 +118,4 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`) is installed via `npm in
 
 ## Last Updated
 
-2026-04-20 — workflow_dispatch added to distribute-skills.yml (2 inputs: skills, target_repo) for immediate full adaptation to newly-enrolled repos; Jest test suite added (44 tests: unit agent router + e2e GitHub API dispatch); PR #76
+2026-04-21 — optimization-feasibility skill added to engineering-std plugin (4-criteria PRR checklist, confidence scoring, risk-based HITL); pushed to claude/review-scaling-optimization-nmvlY
