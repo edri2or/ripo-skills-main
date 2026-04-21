@@ -18,6 +18,8 @@
     "skills/deep-research-prompt-builder/SKILL.md",
     "skills/audit-github-tokens/SKILL.md",
     "skills/e2e-test-writer/SKILL.md",
-    "skills/optimization-feasibility/SKILL.md"
+    "skills/optimization-feasibility/SKILL.md",
+    "skills/handoff/SKILL.md",
+    "skills/compact/SKILL.md"
   ]
 }
