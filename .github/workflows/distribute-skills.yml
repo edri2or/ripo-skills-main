@@ -347,7 +347,7 @@ jobs:
                   adapted_label = f'{subs} subs' if subs else '—'
                   if err is None:
                       status = '✅'
-                  elif err == 422:
+                  elif err in (409, 422):
                       date_tag = datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%d')
                       fb_branch = f'sync/distribute-{skill}-{date_tag}'
                       if repo not in _default_branch_cache:
