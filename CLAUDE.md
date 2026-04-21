@@ -118,4 +118,4 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`) is installed via `npm in
 
 ## Last Updated
 
-2026-04-21 — optimization-feasibility skill added to engineering-std plugin (4-criteria PRR checklist, confidence scoring, risk-based HITL); pushed to claude/review-scaling-optimization-nmvlY
+2026-04-21 — distribute-skills PR fallback added (ADR 0015): 422 on branch-protected repos now opens sync/ PR with PAT instead of silent ❌; hard_failures counter added; PR #81 open
