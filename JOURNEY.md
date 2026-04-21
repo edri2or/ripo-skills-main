@@ -8,6 +8,29 @@ It is the primary audit trail for autonomous agent activity.
 
 ---
 
+## [2026-04-21] Fix github.token in skill-sync enrolled repos — scan + targeted fixes + distribute guard
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `.github/workflows/distribute-workflow-template.yml`, `docs/adr/0016-distribute-skill-sync-template-and-guard.md`, `edri2or/project-life-130` (external), `edri2or/project-life-132` (external)
+**Objective**: תיקון הסיבה שש-`project-life-130` לא קיבל את `optimization-feasibility` — `skill-sync.yml` פתח PRs עם `github.token` שמדכא `pull_request` events ומונע הרצת Documentation Enforcement.
+
+### Actions taken
+- סרקנו 70 ריפוזים enrolled: 68 תקינים (`send_reusable`), 1 עם הבאג (`project-life-130`), 1 עם direct-push (`project-life-132`)
+- `project-life-130` PR #23: החלפת `GH_TOKEN: ${{ github.token }}` ב-`GH_TOKEN: ${{ steps.secrets.outputs.GITHUB_PAT_SKILL_SYNC }}` + ADR 0014 — מוזג ✅
+- `ripo-skills-main` PR #82: עדכון `distribute-workflow-template.yml` להפיץ גם `skill-sync.yml` + guard שמדלג על ריפוזים עם "receive" variant + ADR 0016 — מוזג, הפצה ל-68 ריפוזים רצה אוטומטית ✅
+- `project-life-132` PR #2: הוספת `push: branches: [main]` ל-`documentation-enforcement.yml` + SHA computation לשני סוגי events + ADR 0006 — מוזג, push trigger אומת ✅
+
+### Decisions made
+- **תיקון ישיר ב-project-life-130 ולא דרך template**: ה-`skill-sync.yml` שם הוא "receive" variant עם WIF+GCP — לא תבנית מ-ripo-skills-main, צריך לגעת בקובץ ישירות.
+- **Guard בדיסטריביוציה לפי content ולא לפי שם**: בדיקת `skill-sync-reusable.yml` בתוכן הקובץ הקיים מגנה על ריפוזים עם receive variant מפני דריסה עיוורת.
+- **Push trigger ב-project-life-132 במקום מעבר לPR flow**: אין branch protection ואין PAT מתאים לcreate-PR — הוספת push trigger היא הפתרון הפחות פולשני שמשיג אותה תוצאה.
+
+### Open items / follow-ups
+- [ ] **PAT rotation `GITHUB_PAT_SKILL_SYNC` עד 2026-07-20** — ה-PAT ב-`project-life-130` נוצר עם 90 יום; לאחר רוטציה לוודא ש-`pull-requests:write` על `project-life-130` כלול ב-scope החדש
+- [ ] מזג `claude/fix-github-token-workflow-4gZ80` ב-ripo-skills-main ידנית (ענף `claude/` — לא עובר auto-merge)
+
+---
+
 ## [2026-04-20] workflow_dispatch + Jest Test Suite
 
 **Operator**: claude-sonnet-4-6 (autonomous agent)
