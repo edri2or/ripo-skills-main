@@ -90,6 +90,20 @@ jobs:
                       content_b64 = template_contents[local_path]
                       target_name = target_path.split('/')[-1]
                       existing, _ = gh('GET', f'/repos/{repo}/contents/{target_path}')
+
+                      # Guard: for skill-sync.yml, only overwrite repos that already
+                      # run the standard reusable-workflow variant (send direction).
+                      # Repos with a custom "receive" workflow are skipped to avoid
+                      # clobbering intentionally different setups.
+                      if target_name == 'skill-sync.yml' and existing:
+                          import base64 as _b64
+                          existing_content = _b64.b64decode(existing['content']).decode()
+                          if 'skill-sync-reusable.yml' not in existing_content:
+                              status = '⏭ skipped (custom variant)'
+                              print(f'  {repo}/{target_name}: {status}', flush=True)
+                              summary.append(f'| `{repo}` | `{target_name}` | {status} |')
+                              continue
+
                       payload = {
                           'message': f'chore: update {target_name} workflow from ripo-skills-main (PAT fix)',
                           'content': content_b64,
