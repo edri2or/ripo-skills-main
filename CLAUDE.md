@@ -125,4 +125,4 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`, `jest`, `@types/jest`, `
 
 ## Last Updated
 
-2026-04-21 — distribute-skills PR fallback added (ADR 0015): 422 on branch-protected repos now opens sync/ PR with PAT instead of silent ❌; hard_failures counter added; PR #81 open
+2026-04-21 — github.token bug fixed in enrolled repos: project-life-130 PR #23 (PAT fix), project-life-132 PR #2 (push trigger for DE), ripo-skills-main PR #82 (distribute guard + ADR 0016); 70-repo scan confirmed single root cause
