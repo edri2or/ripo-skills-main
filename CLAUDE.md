@@ -103,16 +103,23 @@ To bypass enforcement, a team lead must explicitly remove the "Required" status 
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `discoverSkills` | `(projectRoot?: string) => SkillMeta[]` | Scans `.claude/plugins/` and extracts YAML frontmatter from every SKILL.md (lightweight — no body loaded). |
-| `routeIntent` | `(intent: string, skills: SkillMeta[], threshold?: number) => SkillMeta \| null` | Matches user intent to the best skill via Jaccard similarity on description tokens. |
+| `discoverSkills` | `(projectRoot?: string) => SkillMeta[]` | Scans `.claude/plugins/` and extracts YAML frontmatter from every SKILL.md (lightweight — no body loaded). Skips symlinks. |
+| `routeIntent` | `(userIntent: string, skills: SkillMeta[], threshold = 0.05) => SkillMeta \| null` | Matches user intent to the best skill via Jaccard similarity on description tokens. Returns immediately on a perfect score (1.0). |
 | `activateSkill` | `(skill: SkillMeta) => SkillFull` | Loads the full SKILL.md body for the matched skill (Progressive Disclosure). |
+
+**Exported types:**
+
+| Type | Fields |
+|------|--------|
+| `SkillMeta` | `name: string`, `description: string`, `allowedTools: string[]`, `filePath: string` |
+| `SkillFull` | extends `SkillMeta` + `body: string` |
 
 The router is dependency-free (no runtime npm packages) and can be run directly:
 ```bash
 ts-node src/agent/index.ts "create a new API endpoint"
 ```
 
-Dev toolchain (`@types/node`, `prettier`, `typescript`) is installed via `npm install` — see `docs/adr/0003-npm-typescript-dev-toolchain.md`.
+Dev toolchain (`@types/node`, `prettier`, `typescript`, `jest`, `@types/jest`, `ts-jest`) is installed via `npm install` — see `docs/adr/0003-npm-typescript-dev-toolchain.md` and `docs/adr/0014-jest-test-suite-and-workflow-dispatch.md`.
 
 ---
 
