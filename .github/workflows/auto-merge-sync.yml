@@ -104,5 +104,6 @@ jobs:
         run: |
           gh pr merge ${{ github.event.pull_request.number }} \
             --squash \
+            --auto \
             --repo edri2or/ripo-skills-main \
             --delete-branch
