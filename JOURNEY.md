@@ -8,6 +8,30 @@ It is the primary audit trail for autonomous agent activity.
 
 ---
 
+## [2026-04-22] תיקון סנכרון stage1-bootstrap + עצירת rotate-github-pats false-failures ב-project-life-130
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `exported-skills/stage1-bootstrap/SKILL.md` (ripo-skills-main), `.github/workflows/rotate-github-pats.yml` (project-life-130), `.claude/plugins/engineering-std/skills/stage1-bootstrap/SKILL.md` (project-life-130)
+**Objective**: תיקון שרשרת כשלונות CI שמנעה auto-merge של PRs לסנכרון skill ה-`stage1-bootstrap` מ-project-life-130, ועצירת false-failure חוזר של `rotate-github-pats.yml` על כל push.
+
+### Actions taken
+- **PR #101 ripo-skills-main**: קיצור `description` ב-`exported-skills/stage1-bootstrap/SKILL.md` מ-325 → 224 תווים כדי לעבור את ה-250-char validate check — מוזג ✅
+- **PR #105 ripo-skills-main**: אותו תיקון description על contribution חדש מ-project-life-130 — מוזג ✅
+- **PR #63 project-life-130**: קיצור description ב-SOURCE (`.claude/plugins/engineering-std/skills/stage1-bootstrap/SKILL.md`) מ-288 → 201 תווים כדי שהסינתוז עם placeholders (~+23 תווים) יישאר תחת 250 — מוזג ✅
+- **PR #62 project-life-130**: הוספת `noop` job ל-`rotate-github-pats.yml` (תיקון ביניים — לא הספיק)
+- **PR #65 project-life-130**: החלפת job-level `if:` ב-step-level guards בתוך job יחיד — הפסיק את ה-false-failures לחלוטין, אומת בטסט הרמטי ✅
+
+### Decisions made
+- **תיקון ב-SOURCE ולא רק ב-exported**: תיקון רק ב-ripo-skills-main יצר לולאה — `skill-contribute.yml` מ-project-life-130 דחף מחדש את התיאור הארוך. הפתרון הנכון הוא לקצר את המקור.
+- **Step-level guards במקום job-level `if:`**: job-level `if:` שגרם ל-0 jobs שרצו הוביל ל-`failure` גם כשה-logic היה נכון. step ראשון עם `exit 0` מבטיח שה-job תמיד מתחיל ומסיים בהצלחה.
+- **טסט הרמטי לאימות**: push ממשי לענף טסט + polling 60s + assert על rotate runs — אישר שאין יותר false-failures.
+
+### Open items / follow-ups
+- [ ] **PR #64 project-life-130** — ענף `claude/review-documentation-UxyDo` עדיין פתוח; לוודא שמוזג או נסגר
+- [ ] **PAT rotation `GITHUB_PAT_SKILL_SYNC`** (נשאר מהסשן הקודם) — עד 2026-07-20
+
+---
+
 ## [2026-04-21] Fix github.token in skill-sync enrolled repos — scan + targeted fixes + distribute guard
 
 **Operator**: claude-sonnet-4-6 (autonomous agent)

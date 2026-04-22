@@ -125,4 +125,4 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`, `jest`, `@types/jest`, `
 
 ## Last Updated
 
-2026-04-21 — github.token bug fixed in enrolled repos: project-life-130 PR #23 (PAT fix), project-life-132 PR #2 (push trigger for DE), ripo-skills-main PR #82 (distribute guard + ADR 0016); 70-repo scan confirmed single root cause
+2026-04-22 — stage1-bootstrap description shortened in source + exported (PRs #101, #105, #63); rotate-github-pats false-failures fixed with step-level guards (PR #65); hermetic push test confirmed no more spurious failures
