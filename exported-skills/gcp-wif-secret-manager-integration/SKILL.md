@@ -120,6 +120,13 @@ import {
 Triggers on `push: paths: terraform/**` (non-main branches) + `workflow_dispatch`.
 Authenticates via **Seed Project WIF** (not the app WIF — that doesn't exist yet).
 
+⚠️ **Bootstrap paradox**: `gcp-bootstrap.yml` creates GCP SM. It cannot fetch
+`GITHUB_PAT_SECRETS_WRITE` from SM before SM exists. Keep the token as GitHub repo secret
+`PAT_SECRETS_WRITE`. All other workflows fetch from GCP SM at runtime. See ADR 0010.
+
+⚠️ **GitHub naming constraint**: GitHub rejects secret names starting with `GITHUB_`
+(HTTP 422). Name the GitHub repo secret `PAT_SECRETS_WRITE`; GCP SM can use the full name.
+
 ```yaml
 - id: auth
   uses: google-github-actions/auth@v2
@@ -135,13 +142,6 @@ Authenticates via **Seed Project WIF** (not the app WIF — that doesn't exist y
     gh secret set WIF_SERVICE_ACCOUNT --body "$SA"
     gh secret set GCP_PROJECT_ID      --body "$PID"
 ```
-
-⚠️ **Bootstrap paradox**: `gcp-bootstrap.yml` creates GCP SM. It cannot fetch
-`GITHUB_PAT_SECRETS_WRITE` from SM before SM exists. Keep the token as GitHub repo secret
-`PAT_SECRETS_WRITE`. All other workflows fetch from GCP SM at runtime. See ADR 0010.
-
-⚠️ **GitHub naming constraint**: GitHub rejects secret names starting with `GITHUB_`
-(HTTP 422). Name the GitHub repo secret `PAT_SECRETS_WRITE`; GCP SM can use the full name.
 
 Push Terraform files + `gcp-bootstrap.yml` to a feature branch. The `terraform/**` push
 auto-triggers the workflow. Wait for all steps green before Phase 3.
@@ -179,10 +179,6 @@ identical to the SEED_ workflow and is faster for one-time manual population. Th
 pattern is preferable for secrets that need to be rotated or automated; Console insertion
 is acceptable for the initial PAT population where the operator is already present.
 
-In practice (project-life-130): the 3 GitHub PATs were inserted via Console directly; only
-auto-generated secrets (N8N_ENCRYPTION_KEY, N8N_OWNER_PASSWORD) used the inline-generate path
-inside `populate-secrets.yml`.
-
 ---
 
 ### Phase 4 — GitHub PAT Centralization (Human + Agent)
@@ -199,16 +195,13 @@ programmatically.
 | `GITHUB_PAT_SECRETS_WRITE` | `secrets: write` | this repo | bootstrap.yml, populate-secrets.yml |
 | `GITHUB_PAT_ACTIONS_WRITE` | `actions: write` | this repo | agent autonomous `workflow_dispatch` (see ADR 0016) |
 
-⚠️ **`GITHUB_PAT_ACTIONS_WRITE` is required for full agent autonomy.** Without it the agent
-cannot trigger `deploy-n8n.yml`, `populate-secrets.yml`, or any `workflow_dispatch` workflow
-without a human clicking "Run workflow" in the GitHub UI — violating the zero-operator-dashboard
-principle. Create this PAT at the same time as the other three.
+⚠️ **`GITHUB_PAT_ACTIONS_WRITE` is required for full agent autonomy.** Without it, every `workflow_dispatch` requires a human in the GitHub UI — violating the zero-operator-dashboard principle. Create this PAT at the same time as the other three.
 
 **Write `rotate-github-pats.yml`** — `workflow_dispatch` with `secret_name` (choice enum) +
 `new_token` (masked). WIF auth → writes new version to GCP SM → [your-telegram] confirmation.
 
 ⚠️ **[your-telegram] confirmation dependency**: `rotate-github-pats.yml` sends a [your-telegram] confirmation.
-If [your-telegram] is not yet live (Stage 5 not complete), the confirmation step will fail or be skipped.
+If [your-telegram] is not yet live (Stage 5 not complete), the confirmation step will fail (no `continue-on-error`).
 The GCP SM write still succeeds — the [your-telegram] step is informational only. Do not block PAT
 storage waiting for [your-telegram]; it can be wired in after Stage 5.
 
@@ -220,11 +213,7 @@ storage waiting for [your-telegram]; it can be wired in after Stage 5.
 
 After operator confirms PATs stored in GCP SM, delete the classic PAT from GitHub secrets.
 
-⚠️ **`PAT_SECRETS_WRITE` transitional state**: When first created, `PAT_SECRETS_WRITE` is
-typically set to the old classic PAT value as a placeholder so `gcp-bootstrap.yml` can run.
-After the operator creates the real `GITHUB_PAT_SECRETS_WRITE` fine-grained PAT, this GitHub
-secret must be updated to the new value. Verify the value is the fine-grained PAT before
-treating Stage 3 as complete.
+⚠️ **`PAT_SECRETS_WRITE` check**: Verify `PAT_SECRETS_WRITE` contains the fine-grained `GITHUB_PAT_SECRETS_WRITE` value before treating Stage 3 complete. If it was set to a classic PAT as a bootstrap placeholder, update it now.
 
 **Additional secrets stored during this stage** (not PATs — but stored in GCP SM as part of
 the broader secret inventory):
@@ -269,8 +258,7 @@ Document E2E run ID in `[your-journey-file]`.
 | GitHub `GITHUB_*` naming | `gh secret set` returns HTTP 422 | GitHub forbids repo secrets starting with `GITHUB_` | Use `PAT_SECRETS_WRITE` as GitHub secret name; full name only in GCP SM | — |
 | `gcloud secrets versions add` fails | Silent failure or `PERMISSION_DENIED` | Secret shell not pre-created in `secrets.tf` / `gcp-bootstrap.yml` not run yet | Pre-declare every secret in `secrets.tf`; run `gcp-bootstrap.yml` first | 0008 |
 | Bootstrap paradox | "Set GitHub Secrets" step fails, `GH_TOKEN` empty | `gcp-bootstrap.yml` can't fetch from GCP SM before SM exists | Keep `PAT_SECRETS_WRITE` as GitHub secret for `gcp-bootstrap.yml` only | 0010 |
-| HCL inline variable syntax | `terraform init` fails with HCL parse error | Single-line variable definition rejected by HCL parser | Use multiline syntax for all variables with a `default` value | — |
-| HCL semicolon in inline block | `terraform init` fails: `unexpected token ";"` | Semicolon inside a single-line variable block is invalid HCL — e.g. `variable "x" { default = "y"; }` | Remove semicolon; use fully multiline block | — |
+| HCL inline variable syntax | `terraform init` fails: HCL parse error or `unexpected token ";"` | Single-line or semicolon-terminated variable blocks rejected by HCL parser | Use fully multiline blocks for all variables | — |
 
 ---
 
@@ -320,8 +308,6 @@ roles, pre-existing secrets are common first-run failures). Waits for all steps 
 "Set GitHub Secrets" to be green. Writes `populate-secrets.yml` — uses SEED_ pattern or
 prompts operator to use GCP Console directly (both are equivalent). Writes
 `rotate-github-pats.yml`. Asks operator to create **4 fine-grained PATs** (not 3 — include
-`GITHUB_PAT_ACTIONS_WRITE` with `actions:write`). Verifies `PAT_SECRETS_WRITE` GitHub secret
-contains the correct fine-grained PAT value (not the old classic PAT). After operator confirms
+`GITHUB_PAT_ACTIONS_WRITE` with `actions:write`). After operator confirms
 GCP SM populated, triggers a WIF-authenticated workflow to verify E2E. If auth fails, checks
 `wif.tf` for attribute wildcard trap and fixes to pool-level `/*`. Documents run ID in [your-journey-file].
-Does NOT build `secrets-sync.yml` — per-workflow inline secret fetch is the correct pattern.
