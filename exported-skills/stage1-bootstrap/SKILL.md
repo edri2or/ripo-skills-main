@@ -1,7 +1,7 @@
 ---
 # last-contributed: 2026-04-20
 name: stage1-bootstrap
-description: "Bootstraps [your-railway] + [your-cloudflare] DNS for a new autonomous project. Writes bootstrap.yml, triggers via workflow_dispatch, verifies E2E, and documents in [your-journey-file]. Use after /gcp-wif-bootstrap completes."
+description: "Bootstraps [your-railway] + [your-cloudflare] DNS for a new autonomous system. Writes bootstrap.yml, triggers via workflow_dispatch, verifies E2E, and documents in [your-journey-file]. Use after /gcp-wif-bootstrap completes."
 allowed-tools:
   - Read
   - Edit
@@ -199,7 +199,7 @@ jobs:
 
       - name: Store Railway IDs as GitHub Secrets
         env:
-          GH_TOKEN: ${{ secrets.PUSH_TARGET_TOKEN }}
+          GH_TOKEN: ${{ steps.secrets.outputs.GITHUB_PAT_SECRETS_WRITE }}   # ADR 0010 — PUSH_TARGET_TOKEN deleted
           PROJECT_ID: ${{ steps.railway.outputs.project_id }}
           ENV_ID: ${{ steps.railway.outputs.env_id }}
         run: |
