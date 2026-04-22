@@ -1,7 +1,7 @@
 ---
 # last-contributed: 2026-04-20
 name: stage1-bootstrap
-description: "Bootstraps [your-railway] + [your-cloudflare] DNS for a new autonomous system. Writes bootstrap.yml, triggers via workflow_dispatch, verifies E2E, and documents in [your-journey-file]. Use after /gcp-wif-bootstrap completes."
+description: "Bootstraps [your-railway] project and [your-cloudflare] DNS for a new autonomous system. Writes bootstrap.yml, triggers it via workflow_dispatch, verifies E2E results, and documents in [your-journey-file]. Use when setting up Stage 1 infrastructure ([your-railway] + [your-cloudflare]) after /gcp-wif-bootstrap has completed."
 allowed-tools:
   - Read
   - Edit
@@ -69,7 +69,7 @@ Check all of the following. If any is missing, stop and print exactly what is mi
 | `WIF_PROVIDER` GitHub Secret | Referenced in CLAUDE.md GCP Bootstrap section |
 | `WIF_SERVICE_ACCOUNT` GitHub Secret | Referenced in CLAUDE.md GCP Bootstrap section |
 | `GCP_PROJECT_ID` GitHub Secret | Referenced in CLAUDE.md GCP Bootstrap section |
-| `PUSH_TARGET_TOKEN` repo secret | Must exist — used by workflow to set GitHub Secrets |
+| `PAT_SECRETS_WRITE` GitHub Secret | Must exist — used by `gcp-bootstrap.yml` to set GitHub Secrets (contains `GITHUB_PAT_SECRETS_WRITE` value; ADR 0010) |
 | GCP Secret `RAILWAY_TOKEN` populated | Confirm with user (cannot verify without gcloud) |
 | GCP Secret `CLOUDFLARE_TOKEN` populated | Confirm with user |
 | GCP Secret `CLOUDFLARE_ZONE_ID` populated | Confirm with user |
