@@ -129,9 +129,9 @@ jobs:
               https://api.github.com/repos/${{ github.repository }}/git/refs \
               -d "{\"ref\":\"refs/heads/$BRANCH\",\"sha\":\"$BASE_SHA\"}" > /dev/null 2>&1 || true
 
-            # Get existing SHA if file exists
+            # Get existing SHA from the sync branch (not main) — file may exist there before merging
             EXISTING_SHA=$(curl -sf -H "Authorization: token $GH_TOKEN" \
-              "https://api.github.com/repos/${{ github.repository }}/contents/exported-skills/$SKILL/SKILL.md" \
+              "https://api.github.com/repos/${{ github.repository }}/contents/exported-skills/$SKILL/SKILL.md?ref=$BRANCH" \
               | python3 -c "import sys,json; print(json.load(sys.stdin).get('sha',''))" 2>/dev/null || echo "")
 
             PAYLOAD="{\"message\":\"sync: export $SKILL (score: $SCORE/100, $ACTION)\",\"content\":\"$CONTENT\",\"branch\":\"$BRANCH\""
@@ -141,7 +141,7 @@ jobs:
             curl -sf -X PUT -H "Authorization: token $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
               "https://api.github.com/repos/${{ github.repository }}/contents/exported-skills/$SKILL/SKILL.md" \
-              -d "$PAYLOAD" > /dev/null
+              -d "$PAYLOAD" > /dev/null || true
 
             PR_URL=$(curl -sf -X POST -H "Authorization: token $GH_TOKEN" \
               -H "Accept: application/vnd.github+json" \
