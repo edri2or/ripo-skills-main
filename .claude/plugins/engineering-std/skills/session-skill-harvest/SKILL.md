@@ -1,6 +1,6 @@
 ---
 name: session-skill-harvest
-description: "Scans current session and JOURNEY.md for recurring workflow patterns; surfaces ranked SKILL.md candidates with recurrence counts. Use when harvesting skill candidates, identifying reusable workflows, or extracting skills from session retrospective."
+description: "Scans current session and JOURNEY.md for recurring workflow patterns; surfaces ranked SKILL.md candidates with recurrence counts. Use when harvesting skill candidates or extracting reusable workflows."
 allowed-tools:
   - Read
   - Bash
