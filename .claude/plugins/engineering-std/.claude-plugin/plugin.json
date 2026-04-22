@@ -21,6 +21,7 @@
     "skills/optimization-feasibility/SKILL.md",
     "skills/handoff/SKILL.md",
     "skills/compact/SKILL.md",
-    "skills/session-skill-harvest/SKILL.md"
+    "skills/session-skill-harvest/SKILL.md",
+    "skills/skill-router/SKILL.md"
   ]
 }
