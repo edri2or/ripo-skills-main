@@ -189,3 +189,7 @@ Fewer than 15 words, no component. Asks: "Can you describe: (1) what domain this
 (2) the symptom you observe, and (3) which component is affected?" After user replies
 ("API layer, 500ms p99 at 100 RPS, architecture"), extracts structured Pain Statement
 and presents for confirmation. Does not search until confirmed.
+
+## Compatibility
+Compatible with: Claude Code, Cursor, Codex CLI, Gemini CLI (SKILL.md standard)
+Source: Exported from .claude/plugins/engineering-std/skills/technical-pain-analyzer/ on 2026-04-23
