@@ -12,7 +12,6 @@ evidence: "First use 2026-04-17. Validated in project-life-103."
 scope: global
 portability: 70
 synthesis-required: true
-source-repo: edri2or/project-life-132
 blocked-refs:
   - /git-commit
   - /cleanup-template
@@ -103,4 +102,4 @@ next project name automatically. The chain continues indefinitely without any ha
 
 ## Compatibility
 Compatible with: Claude Code, Cursor, Codex CLI, Gemini CLI (SKILL.md standard)
-Source: Included in project-life-132 template as of 2026-04-17
+Source: Included in project-life-133 template as of 2026-04-17
