@@ -1,7 +1,3 @@
----
-description: Re-specializes synthesized skills for the current repository. Scans .claude/commands/ for skills marked synthesis-required: true, discovers target-repo equivalents for each placeholder, and applies substitutions automatically. Use after /push-skills to adapt incoming skills to this repo.
----
-
 # Skill Adapter
 
 ## Role
