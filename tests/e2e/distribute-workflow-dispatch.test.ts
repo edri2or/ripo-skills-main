@@ -32,9 +32,8 @@ const TOKEN =
   process.env.GITHUB_TOKEN ||
   "";
 
-// Branch that has the workflow_dispatch changes and exists on GitHub.
-// TODO: update to "main" (or remove) after PR #76 is merged and this branch is deleted.
-const FEATURE_BRANCH = "claude/review-documentation-mfn7S";
+// Use main — workflow_dispatch has been on main since PR #76 was merged.
+const FEATURE_BRANCH = "main";
 
 // ---------------------------------------------------------------------------
 // GitHub API helper (node:https — no extra deps)
@@ -189,7 +188,7 @@ describe("distribute-skills.yml — GitHub API metadata", () => {
     expect(wf.path).toContain(WORKFLOW_FILE);
   });
 
-  it("feature branch exists on GitHub", async () => {
+  it("main branch exists on GitHub", async () => {
     const { status } = await ghRequest(
       "GET",
       `/repos/${REPO}/git/refs/heads/${FEATURE_BRANCH}`,
@@ -199,7 +198,7 @@ describe("distribute-skills.yml — GitHub API metadata", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Live dispatch API — tests the workflow_dispatch trigger from the feature branch
+// Live dispatch API — tests the workflow_dispatch trigger from main
 // ---------------------------------------------------------------------------
 
 describe("distribute-skills.yml — live workflow_dispatch API", () => {
