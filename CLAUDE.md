@@ -125,7 +125,7 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`, `jest`, `@types/jest`, `
 
 ## Last Updated
 
-2026-04-24 — fixed 17 exported-skills description fields (quoting + trimming) to unblock auto-merge-sync validate; patched project-life-133 source via API; closed stale PR #138; opened PR #139
+2026-04-24 — merged 15 cascading "behind" PRs in project-life-130 manually; added `gh pr merge --auto --squash` to distribute-skills.yml fallback path + ADR-0020; opened PR #157 for manual merge
 
 ## Session Handoff
 <!-- auto-updated by /compact — do not edit manually -->
