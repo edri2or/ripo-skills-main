@@ -39,9 +39,11 @@ ripo-skills-main/
 │           ├── .claude-plugin/
 │           │   └── plugin.json      # Plugin manifest
 │           ├── .mcp.json            # Bundled MCP server configurations
-│           └── skills/              # 7 skills (git-commit, db-migration, doc-standard,
-│               └── ...              #   doc-updater, scaffold-feature, safe-refactor,
-│                                    #   enterprise-feature-scaffold)
+│           └── skills/              # 20 skills
+│               └── ...
+│       └── global/                  # Global skills plugin
+│           └── skills/              # 13 skills
+│               └── ...
 └── .github/workflows/
     └── documentation-enforcement.yml  # CI blocking gate
 ```
@@ -81,7 +83,8 @@ ripo-skills-main/
 | `policy/` | Rego policies consumed by Conftest |
 | `scripts/` | CI helper scripts |
 | `.claude/settings.json` | Global Claude Code permission model |
-| `.claude/plugins/engineering-std/` | Standard engineering skills plugin (7 skills + 5 MCP servers) |
+| `.claude/plugins/engineering-std/` | Standard engineering skills plugin (20 skills + 5 MCP servers) |
+| `.claude/plugins/global/` | Global skills plugin (13 skills, no MCP servers) |
 | `docs/skill-authoring.md` | Skill authoring guide: frontmatter rules, portability scoring, failure modes |
 
 ---
