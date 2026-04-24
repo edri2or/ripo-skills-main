@@ -126,3 +126,13 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`, `jest`, `@types/jest`, `
 ## Last Updated
 
 2026-04-22 — stage1-bootstrap description shortened in source + exported (PRs #101, #105, #63); rotate-github-pats false-failures fixed with step-level guards (PR #65); hermetic push test confirmed no more spurious failures
+
+## Session Handoff
+<!-- auto-updated by /compact — do not edit manually -->
+**Last updated:** 2026-04-24 11:30
+**Intent:** Fix all 17 exported-skills with invalid description fields so every future skill sync PR auto-merges without manual intervention.
+**Key decisions:** Quote all descriptions (validator requires `"..."`); trim 12 descriptions to ≤250 chars; fix list-skills allowedTools→allowed-tools:; close PR #138 (stale feature); restore 3 over-trimmed descriptions post-simplify.
+**Next:**
+- Merge PR #139 (claude/translate-hebrew-text-LhFgZ → main); branch is `claude/` so manual merge required
+- Verify distribute-skills.yml auto-distributes updated descriptions to enrolled repos after merge
+- Monitor next skill sync PR to confirm full end-to-end auto-merge works
