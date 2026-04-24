@@ -1,7 +1,3 @@
----
-description: Generates a research prompt for an external deep-research AI before development begins. Reads repo snapshot, runs web research, outputs prompt to chat. Use when you need to compose a research spec, plan a new feature, write development stages, or research before building.
----
-
 # Dev Research Prompt
 
 ## Role
