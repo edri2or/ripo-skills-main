@@ -1,7 +1,3 @@
----
-description: Scaffolds a new vertical slice feature (Controller, Service, Repository) following Clean Architecture standards. Use when creating new API endpoints or modules.
----
-
 # Enterprise Feature Scaffold
 
 ## Role
