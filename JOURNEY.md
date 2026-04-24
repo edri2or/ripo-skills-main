@@ -702,3 +702,32 @@ research document "אכיפת תיעוד וניהול מדיניות-כקוד ב
 - [ ] Set `doc-policy-check` as a Required Status Check in GitHub Branch Protection settings
 - [ ] Add `pr_compliance_checklist.yaml` for Qodo Merge semantic validation (Layer 4)
 - [ ] Populate `src/agent/` with initial agent code and update CLAUDE.md accordingly
+
+---
+
+## [2026-04-24] תיקון 17 exported-skills descriptions לביטול חסימת auto-merge בכל הריפוז
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `exported-skills/*/SKILL.md` (×17), `CLAUDE.md`, `HANDOFF.md`, `project-life-133:exported-skills/github-app-bootstrap/SKILL.md` (external via API)
+**Objective**: לאתר מדוע PR #133 לא מוזג ולתקן את כל ה-exported-skills שמכילים `description:` לא תקין כדי שכל עדכון סקיל עתידי יעבור auto-merge ללא התערבות ידנית.
+
+### Actions taken
+- **אבחון PR #133**: זוהה שה-`skill-contribute.yml` יצר 4 PRs כפולים (#130–#133) שכולם נכשלו ב-`validate` job בגלל `description` ארוך מ-250 תווים; PR #134 מסשן קודם תיקן וסגר את הכפולים.
+- **תיקון project-life-133 source**: עדכון ישיר דרך GitHub API (`PUSH_TARGET_TOKEN`) של `exported-skills/github-app-bootstrap/SKILL.md` — קיצור description מ-312 → 219 תווים.
+- **commit `2a7f434`**: תיקון 17 `exported-skills/*/SKILL.md` — ציטוט descriptions חסרי גרשיים כפולות + קיצור 12 descriptions ל-≤250 תווים + תיקון `allowedTools` → `allowed-tools:` ב-`list-skills`.
+- **commit `1ecdef4`** (post-/simplify): שחזור הקשר שאבד בחיתוך בשלושה קבצים: `doc-updater` ("or function"), `skill-audit` (הגדרות stale/orphaned), `dev-deploy-research` (שלב confirmation).
+- **סגירת PR #138**: `feat/skill-plugin-distribution` — feature מסשן קודם, CI כושל, לא נדרש כרגע.
+- **פתיחת PR #139**: `claude/translate-hebrew-text-LhFgZ → main` עם כל התיקונים.
+- **יצירת HANDOFF.md** ועדכון `## Session Handoff` ב-CLAUDE.md לשימור הקשר.
+
+### Decisions made
+- **תיקון ב-source ולא רק ב-ripo-skills-main**: תיקון רק כאן יצר לולאה — `skill-contribute.yml` מ-project-life-133 היה דוחף מחדש את ה-description הארוך. הפתרון הנכון הוא תיקון ב-source.
+- **ציטוט חובה עם גרשיים כפולות**: ה-validator regex מחפש `description:\s*"([^"]+)"` — description לא מצוטט נבלע בשקט וגורם ל-"missing field" failure. כל 17 הקבצים נדרשו לתיקון.
+- **שחזור הקשר שאבד**: /simplify זיהה ש-3 descriptions איבדו מידע קריטי בחיתוך (trigger condition, הגדרות אופרטיביות, שלב אינטראקטיבי) — שחזור עדיף על קוד קצר אך מטעה.
+- **סגירת PR #138 ולא מיזוג**: הפיצ'ר (הפצה ל-plugins/) אינו נדרש לתיקון הנוכחי; ה-branch נשמר לעתיד.
+
+### Open items / follow-ups
+- [ ] **מיזוג PR #139** — branch הוא `claude/` לכן נדרש merge ידני; לאחר המיזוג `distribute-skills.yml` יפיץ descriptions מתוקנים לכל הריפוז המגויסים.
+- [ ] **אימות end-to-end**: לוודא שה-PR הסנכרון הבא מכל ריפו מגויס עובר auto-merge ללא התערבות.
+- [ ] **PR #64 project-life-130** — ענף `claude/review-documentation-UxyDo` עדיין פתוח (נשאר מסשן 2026-04-22).
+- [ ] **(אופציונלי) חילוץ validator**: להוציא את ה-Python inline מ-`auto-merge-sync.yml` לסקריפט `scripts/validate-skill-frontmatter.py` ולחבר כ-pre-commit hook.

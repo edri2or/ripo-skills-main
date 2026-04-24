@@ -125,7 +125,7 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`, `jest`, `@types/jest`, `
 
 ## Last Updated
 
-2026-04-22 — stage1-bootstrap description shortened in source + exported (PRs #101, #105, #63); rotate-github-pats false-failures fixed with step-level guards (PR #65); hermetic push test confirmed no more spurious failures
+2026-04-24 — fixed 17 exported-skills description fields (quoting + trimming) to unblock auto-merge-sync validate; patched project-life-133 source via API; closed stale PR #138; opened PR #139
 
 ## Session Handoff
 <!-- auto-updated by /compact — do not edit manually -->
