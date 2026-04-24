@@ -129,10 +129,10 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`, `jest`, `@types/jest`, `
 
 ## Session Handoff
 <!-- auto-updated by /compact — do not edit manually -->
-**Last updated:** 2026-04-24 11:30
-**Intent:** Fix all 17 exported-skills with invalid description fields so every future skill sync PR auto-merges without manual intervention.
-**Key decisions:** Quote all descriptions (validator requires `"..."`); trim 12 descriptions to ≤250 chars; fix list-skills allowedTools→allowed-tools:; close PR #138 (stale feature); restore 3 over-trimmed descriptions post-simplify.
+**Last updated:** 2026-04-24 12:30
+**Intent:** Fix full skill sync pipeline — 17 exported-skills descriptions + auto-merge on distribute fallback PRs to eliminate cascading "behind" conflicts in enrolled repos.
+**Key decisions:** Quote all descriptions; trim 12 to ≤250 chars; add `gh pr merge --auto --squash` to distribute-skills.yml fallback PR; merged 15 cascading PRs manually in project-life-130.
 **Next:**
-- Merge PR #139 (claude/translate-hebrew-text-LhFgZ → main); branch is `claude/` so manual merge required
-- Verify distribute-skills.yml auto-distributes updated descriptions to enrolled repos after merge
-- Monitor next skill sync PR to confirm full end-to-end auto-merge works
+- Merge PR #139 (claude/translate-hebrew-text-LhFgZ → main) — includes distribute-skills.yml fix; manual merge required (claude/ prefix)
+- Run e2e test: trigger skill update in enrolled repo → verify PR auto-merges without intervention
+- Check project-life-132 — may use direct push without branch protection (no distribute PRs)
