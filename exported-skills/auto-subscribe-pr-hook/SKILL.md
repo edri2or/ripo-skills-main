@@ -8,7 +8,6 @@ allowed-tools:
   - Bash(git *)
   - Bash(python3 *)
   - Bash(chmod *)
-  - Bash(ls *)
   - Bash(./.claude/hooks/auto-subscribe-pr.sh)
 maturity: verified
 source-experiment: core
