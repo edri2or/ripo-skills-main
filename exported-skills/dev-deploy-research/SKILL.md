@@ -1,6 +1,6 @@
 ---
 name: dev-deploy-research
-description: "Parses a completed deep-research document and scaffolds the full file structure (product or infra track) under dev/ideas/ or dev/changes/, then updates dev/README.md. Use after research is complete to deploy it into the dev tracking system."
+description: "Parses a completed deep-research document, confirms with the user, then scaffolds the file structure (product or infra track) under dev/ideas/ or dev/changes/ and updates dev/README.md. Use after research is complete."
 allowed-tools:
   - Read
   - Write
