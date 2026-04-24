@@ -155,7 +155,26 @@ jobs:
         id: railway
         env:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.RAILWAY_TOKEN }}
+          KNOWN_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
         run: |
+          # Fast-path: if RAILWAY_PROJECT_ID is already stored, verify directly (avoids workspace scan)
+          if [ -n "$KNOWN_PROJECT_ID" ]; then
+            PROJ=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -cn --arg id "$KNOWN_PROJECT_ID" \
+                '{"query":"query($id:String!){project(id:$id){id name environments{edges{node{id name}}}}}","variables":{"id":$id}}')")
+            read -r PROJECT_ID ENV_ID PROJ_NAME < <(echo "$PROJ" | jq -r \
+              '[(.data.project.id // ""), (.data.project.environments.edges[0].node.id // ""), .data.project.name] | @tsv')
+            if [ -n "$PROJECT_ID" ]; then
+              echo "Project verified via fast-path: $PROJ_NAME"
+              echo "project_id=$PROJECT_ID" >> "$GITHUB_OUTPUT"
+              echo "env_id=$ENV_ID" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::warning::Stored project ID not found — falling back to workspace scan"
+          fi
+
           # Use workspace-scoped query — { projects } returns personal workspace only (ADR 0009)
           WS_RESP=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
@@ -205,6 +224,27 @@ jobs:
         run: |
           gh secret set RAILWAY_PROJECT_ID --body "$PROJECT_ID" --repo "$GITHUB_REPOSITORY" &
           gh secret set RAILWAY_ENVIRONMENT_ID --body "$ENV_ID" --repo "$GITHUB_REPOSITORY" &
+          wait
+
+      - name: Store Railway IDs in GCP Secret Manager (idempotent)
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          PROJECT_ID: ${{ steps.railway.outputs.project_id }}
+          ENV_ID: ${{ steps.railway.outputs.env_id }}
+        run: |
+          store_sm() {
+            local secret="$1" value="$2"
+            if gcloud secrets versions list "$secret" --limit=1 \
+                --project="$GCP_PROJECT_ID" &>/dev/null 2>&1; then
+              echo "SKIP $secret (already in GCP SM)"
+            else
+              printf '%s' "$value" | gcloud secrets versions add "$secret" \
+                --project="$GCP_PROJECT_ID" --data-file=-
+              echo "OK $secret"
+            fi
+          }
+          store_sm "RAILWAY_PROJECT_ID" "$PROJECT_ID" &
+          store_sm "RAILWAY_ENVIRONMENT_ID" "$ENV_ID" &
           wait
 
       - name: Create Railway project token (idempotent)
@@ -306,16 +346,25 @@ git commit -m "feat: stage 1 — Railway + Cloudflare bootstrap"
 git push -u origin <branch-name>
 ```
 
-Trigger via GitHub Actions UI: Actions → "Stage 1 — [your-railway] + [your-cloudflare] Bootstrap" → Run workflow → `main`.
+Trigger via GitHub Actions UI (primary path — always works):
+Actions → "Stage 1 — [your-railway] + [your-cloudflare] Bootstrap" → Run workflow → `main`.
 
-Or via API:
+If Secrets Broker is already live (Stage 6 established), trigger via API using `GITHUB_PAT_ACTIONS_WRITE`
+fetched from the Secrets Broker (ADR 0025 — `PUSH_TARGET_TOKEN` is **retired**):
 ```bash
+PAT=$(curl -s -X POST "https://<n8n-domain>/webhook/secrets-broker" \
+  -H "Authorization: Bearer $AGENT_SESSION_OTP" \
+  -H "Content-Type: application/json" \
+  -d '{"secret_name":"GITHUB_PAT_ACTIONS_WRITE"}' | jq -r '.value // empty')
 curl -s -X POST \
   "https://api.github.com/repos/<github_repo>/actions/workflows/bootstrap.yml/dispatches" \
-  -H "Authorization: Bearer $PUSH_TARGET_TOKEN" \
+  -H "Authorization: Bearer $PAT" \
   -H "Accept: application/vnd.github+json" \
   -d '{"ref":"main"}'
 ```
+
+⚠️ For a fresh system (Stage 1 is before Stage 2/6), the Secrets Broker is not yet deployed.
+Use the GitHub UI trigger — one operator click is acceptable here.
 
 ### Step 6: Verify and document
 
