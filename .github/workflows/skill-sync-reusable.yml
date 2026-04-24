@@ -92,7 +92,8 @@ jobs:
               out = re.sub(r'(source-experiment:\s*)[^\n]+', r'\1core', out, count=1)
 
           meta = [f'scope: global', f'portability: {score}',
-                  f'synthesis-required: {"true" if synthesis_required else "false"}']
+                  f'synthesis-required: {"true" if synthesis_required else "false"}',
+                  f'source-plugin: {os.environ.get("SOURCE_PLUGIN", "global")}']
           if synthesis_required and blocked:
               meta += ['blocked-refs:'] + [f'  - {b}' for b in blocked]
           out = re.sub(r'\n---\n', '\n' + '\n'.join(meta) + '\n---\n', out, count=1)
@@ -118,10 +119,11 @@ jobs:
           for SKILL in ${{ steps.detect.outputs.skills }}; do
             SKILL_PATH=$(find .claude/plugins -name "SKILL.md" -path "*/$SKILL/SKILL.md" | head -1)
             [ -z "$SKILL_PATH" ] && echo "WARN: $SKILL not found" && continue
+            NAMESPACE=$(echo "$SKILL_PATH" | cut -d'/' -f3)
 
             # Run templatizer → /tmp/<skill>-exported.md
             EXPORTED="/tmp/$SKILL-exported.md"
-            TEMPLATIZER_OUT=$(python3 /tmp/process_skill.py "$SKILL_PATH" "$EXPORTED")
+            TEMPLATIZER_OUT=$(SOURCE_PLUGIN="$NAMESPACE" python3 /tmp/process_skill.py "$SKILL_PATH" "$EXPORTED")
             SCORE=$(echo "$TEMPLATIZER_OUT" | grep -oP 'SCORE:\K[0-9]+')
             ACTION=$(echo "$TEMPLATIZER_OUT" | grep -oP 'ACTION:\K\w+')
 
