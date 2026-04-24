@@ -378,7 +378,14 @@ jobs:
                                   'head': fb_branch, 'base': default_branch,
                               })
                               if pr_err is None and pr_data:
-                                  status = f'⚠️ PR #{pr_data["number"]} → {pr_data["html_url"]}'
+                                  import subprocess as _sp
+                                  _sp.run(
+                                      ['gh', 'pr', 'merge', str(pr_data['number']),
+                                       '--auto', '--squash', '--repo', repo],
+                                      env={**os.environ, 'GH_TOKEN': token},
+                                      capture_output=True,
+                                  )
+                                  status = f'⚠️ PR #{pr_data["number"]} → {pr_data["html_url"]} (auto-merge enabled)'
                               elif pr_err == 422:
                                   status = '⚠️ PR already open'
                               else:
