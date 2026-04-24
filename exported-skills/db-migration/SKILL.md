@@ -1,6 +1,6 @@
 ---
 name: db-migration
-description: Creates, verifies, and executes PostgreSQL schema migrations using TypeORM. Use when the user asks to add a column, create a table, alter the database schema, run a migration, or roll back a migration.
+description: "Creates, verifies, and executes PostgreSQL schema migrations using TypeORM. Use when the user asks to add a column, create a table, alter the database schema, run a migration, or roll back a migration."
 allowed-tools:
   - Read
   - Grep

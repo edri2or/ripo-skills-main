@@ -1,6 +1,6 @@
 ---
 name: enterprise-feature-scaffold
-description: Scaffolds a new vertical slice feature (Controller, Service, Repository) following Clean Architecture standards. Use when creating new API endpoints or modules.
+description: "Scaffolds a new vertical slice feature (Controller, Service, Repository) following Clean Architecture standards. Use when creating new API endpoints or modules."
 allowed-tools:
   - Read
   - LS

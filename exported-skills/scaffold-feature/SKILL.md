@@ -1,6 +1,6 @@
 ---
 name: scaffold-feature
-description: Generates a new vertical-slice feature (Controller, Service, Repository) from standardized templates following Clean Architecture. Use when the user asks to create a new feature, scaffold a module, generate boilerplate, or add a new API endpoint group.
+description: "Generates a new vertical-slice feature (Controller, Service, Repository) from standardized templates. Use when the user asks to create a new feature, scaffold a module, generate boilerplate, or add a new API endpoint group."
 allowed-tools:
   - Read
   - Grep

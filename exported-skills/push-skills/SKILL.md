@@ -1,6 +1,6 @@
 ---
 name: push-skills
-description: "Pushes all portable skills from exported-skills/ to a target GitHub repository as .claude/commands/<name>.md slash-command files. Works for any repo regardless of existing structure — GitHub API creates the directory automatically. Use when you want to install, transfer, or deploy global skills to another repo."
+description: "Pushes all portable skills from exported-skills/ to a target GitHub repository as .claude/commands/<name>.md files. GitHub API creates the directory automatically. Use when you want to install or deploy global skills to another repo."
 allowed-tools:
   - Glob
   - Write

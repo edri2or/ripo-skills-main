@@ -1,6 +1,6 @@
 ---
 name: skill-audit
-description: "Audits all exported skills against their sources. Detects stale exports (source modified after last export), orphaned exports (no local source found), and reports portability scores. Use before /push-skills or after editing skills to confirm the export layer is clean."
+description: "Audits all exported skills against their sources. Detects stale exports (source modified after export), orphaned exports (no local source), and portability scores. Use before /push-skills to confirm the export layer is clean."
 allowed-tools:
   - Glob
   - Bash(git log *)
