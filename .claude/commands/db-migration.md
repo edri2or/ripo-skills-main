@@ -1,7 +1,3 @@
----
-description: Creates, verifies, and executes PostgreSQL schema migrations using TypeORM. Use when the user asks to add a column, create a table, alter the database schema, run a migration, or roll back a migration.
----
-
 # Database Migration Helper
 
 ## Role
