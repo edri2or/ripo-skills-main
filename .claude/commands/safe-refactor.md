@@ -1,7 +1,3 @@
----
-description: Safely refactors a module through a baseline-test → edit → retest → self-correct → commit loop. Use when the user asks to refactor code, clean up a module, rename a class, extract a function, or restructure code without changing behaviour.
----
-
 # Safe Refactor Skill (Phase 3 Production)
 
 ## Role
