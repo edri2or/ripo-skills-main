@@ -15,7 +15,6 @@ evidence: "First shipped 2026-04-24; the merge event of PR #19 arrived in-sessio
 scope: global
 portability: 50
 synthesis-required: true
-source-repo: edri2or/project-life-133
 blocked-refs:
   - /compact
   - /clear
