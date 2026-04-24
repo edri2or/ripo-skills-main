@@ -65,6 +65,253 @@ jobs:
                   return None, e.code
 
           for skill in skills:
+              src_path = f'exported-skills/{skill}/SKILL.md'
+              dst_path = f'.claude/commands/{skill}.md'
+              if not os.path.exists(src_path):
+                  print(f'WARN: {src_path} not found', flush=True)
+                  continue
+
+              raw = open(src_path).read()
+              if raw.startswith('---'):
+                  parts = raw.split('---', 2)
+                  body = parts[2].lstrip() if len(parts) >= 3 else raw
+              else:
+                  body = raw
+
+              content_b64 = base64.b64encode(body.encode()).decode()
+              branch = f'auto/self-install-{skill}-{sha[:7]}'
+
+              gh('POST', f'/repos/{repo}/git/refs', {
+                  'ref': f'refs/heads/{branch}', 'sha': sha
+              })
+
+              existing, _ = gh('GET', f'/repos/{repo}/contents/{dst_path}?ref={branch}')
+              payload = {'message': f'chore: self-install {skill} from exported-skills',
+                         'content': content_b64, 'branch': branch}
+              if existing:
+                  payload['sha'] = existing['sha']
+
+              _, err = gh('PUT', f'/repos/{repo}/contents/{dst_path}', payload)
+              if err:
+                  print(f'ERROR: failed to write {skill} ({err})', flush=True)
+                  sys.exit(1)
+              print(f'  written: {dst_path} → {branch}', flush=True)
+
+              pr, err = gh('POST', f'/repos/{repo}/pulls', {
+                  'title': f'chore: self-install {skill} to .claude/commands/',
+                  'body': f'Auto-generated: installs `.claude/commands/{skill}.md` from `exported-skills/{skill}/SKILL.md`.\n\nDocumentation Policy Check will pass — only `.claude/commands/` is touched.',
+                  'head': branch, 'base': 'main',
+              })
+              if err or not pr:
+                  print(f'WARN: PR open failed or already exists ({err})', flush=True)
+                  continue
+
+              pr_num = pr['number']
+              print(f'  PR #{pr_num}: {pr["html_url"]}', flush=True)
+
+              result = subprocess.run(
+                  ['gh', 'pr', 'merge', str(pr_num), '--auto', '--squash',
+                   '--repo', repo],
+                  capture_output=True, text=True,
+                  env={**os.environ, 'GH_TOKEN': token}
+              )
+              if result.returncode == 0:
+                  print(f'  auto-merge enabled on #{pr_num}', flush=True)
+              else:
+                  print(f'  WARN: auto-merge not enabled: {result.stderr.strip()}', flush=True)
+          PYEOF
+
+  distribute:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          # push needs HEAD~1 for git diff; workflow_dispatch only needs HEAD
+          fetch-depth: ${{ github.event_name == 'push' && '2' || '1' }}
+
+      - name: Detect skills to distribute
+        id: detect
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            if [ -z "${{ inputs.skills }}" ]; then
+              # List only directories that contain a SKILL.md (avoids stray plain files)
+              CHANGED=$(for d in exported-skills/*/; do
+                skill="${d#exported-skills/}"; skill="${skill%/}"
+                [ -f "exported-skills/$skill/SKILL.md" ] && printf '%s ' "$skill"
+              done)
+            else
+              CHANGED=$(echo "${{ inputs.skills }}" | tr ',' ' ')
+            fi
+          else
+            CHANGED=$(git diff --name-only HEAD~1 HEAD \
+              | grep -E '^exported-skills/[^/]+/SKILL\.md$' \
+              | sed 's|exported-skills/\([^/]*\)/SKILL\.md|\1|' \
+              | tr '\n' ' ')
+          fi
+          echo "skills=$CHANGED" >> $GITHUB_OUTPUT
+          echo "Detected: $CHANGED"
+
+      - name: Find enrolled repos and distribute
+        if: steps.detect.outputs.skills != ''
+        env:
+          GH_TOKEN: ${{ secrets.RIPO_SKILLS_MAIN_PAT }}
+          SKILLS: ${{ steps.detect.outputs.skills }}
+          # On push events inputs.target_repo is undefined; GitHub coerces it to empty string
+          TARGET_REPO: ${{ inputs.target_repo }}
+        run: |
+          python3 << 'EOF'
+          import urllib.request, urllib.error, json, os, base64, re, sys, datetime
+          try:
+              import yaml
+          except ImportError:
+              yaml = None
+              print('WARN: PyYAML not available — requires: blocks will be ignored', flush=True)
+
+          token = os.environ['GH_TOKEN']
+          skills = os.environ['SKILLS'].split()
+          headers = {
+              'Authorization': f'token {token}',
+              'Accept': 'application/vnd.github+json',
+              'Content-Type': 'application/json',
+          }
+
+          def gh(method, path, data=None):
+              url = f'https://api.github.com{path}'
+              body = json.dumps(data).encode() if data else None
+              req = urllib.request.Request(url, headers=headers, data=body, method=method)
+              try:
+                  with urllib.request.urlopen(req) as r:
+                      return json.loads(r.read()), None
+              except urllib.error.HTTPError as e:
+                  return None, e.code
+
+          HEURISTICS = {
+              '[your-product-file]':  dict(files=['PRODUCT.md']),
+              '[your-journey-file]':  dict(files=['JOURNEY.md', 'DEVLOG.md', 'NOTES.md']),
+              '[your-agent-file]':    dict(files=['CLAUDE.md', 'AGENT.md', 'AI.md']),
+              '[your-registry-file]': dict(files=['REGISTRY.md', 'INDEX.md']),
+              '[your-railway]':       dict(files=['railway.json', 'railway.toml']),
+              '[your-vercel]':        dict(files=['vercel.json']),
+              '[your-prisma]':        dict(files=['prisma/schema.prisma']),
+              '[your-supabase]':      dict(dirs=['supabase']),
+              '[your-cloudflare]':    dict(files=['wrangler.toml', 'wrangler.json']),
+              '[your-typeorm]':       dict(files=['ormconfig.json', 'ormconfig.ts', 'typeorm.config.ts']),
+          }
+
+          def suffix_match(candidate, paths):
+              if candidate in paths:
+                  return candidate
+              for p in paths:
+                  if p.endswith('/' + candidate):
+                      return p
+              return None
+
+          def build_resolution_map(repo, fm_requires=None):
+              tree_data, err = gh('GET', f'/repos/{repo}/git/trees/main?recursive=1')
+              if err or not tree_data:
+                  return {}
+              paths = {item['path'] for item in tree_data.get('tree', [])}
+              resolved = {}
+
+              if fm_requires:
+                  for placeholder, candidates in fm_requires.items():
+                      if isinstance(candidates, str):
+                          candidates = [candidates]
+                      for candidate in (candidates or []):
+                          match = suffix_match(candidate, paths)
+                          if match:
+                              resolved[placeholder] = match
+                              break
+
+              for placeholder, cfg in HEURISTICS.items():
+                  if placeholder in resolved:
+                      continue
+                  for f in cfg.get('files', []):
+                      if f in paths:
+                          resolved[placeholder] = f
+                          break
+                  if placeholder not in resolved:
+                      for d in cfg.get('dirs', []):
+                          if any(p.startswith(d + '/') for p in paths):
+                              resolved[placeholder] = d
+                              break
+              return resolved
+
+          def adapt(body, resolved):
+              if not resolved:
+                  return body, 0
+              saved = []
+              def save(m):
+                  saved.append(m.group(0))
+                  return f'<<<BLOCK_{len(saved)-1}>>>'
+              body = re.sub(r'```[\s\S]*?```', save, body)
+              count = 0
+              for placeholder, value in resolved.items():
+                  if placeholder in body:
+                      body = body.replace(placeholder, value)
+                      count += 1
+              for i, block in enumerate(saved):
+                  body = body.replace(f'<<<BLOCK_{i}>>>', block)
+              return body, count
+
+          def parse_fm_requires(frontmatter_text, skill_name):
+              # Extract only the requires: block via regex before YAML-parsing.
+              # Parsing the whole frontmatter fails when other fields (e.g. description:)
+              # contain ": " substrings that YAML mistakes for nested keys.
+              block_match = re.search(
+                  r'^requires:\s*\n((?:[ \t]+[^\n]*\n?)*)',
+                  frontmatter_text, re.MULTILINE
+              )
+              if not block_match:
+                  return {}, []
+              requires_text = 'requires:\n' + block_match.group(1)
+              if yaml is None:
+                  return {}, []
+              try:
+                  parsed = yaml.safe_load(requires_text)
+                  if not isinstance(parsed, dict):
+                      return {}, []
+                  raw = parsed.get('requires') or {}
+                  if not isinstance(raw, dict):
+                      raise ValueError(f'requires: must be a mapping, got {type(raw).__name__}')
+                  return raw, []
+              except Exception as e:
+                  msg = f'WARN: YAML parse error in {skill_name} requires: block — {e}'
+                  print(msg, flush=True)
+                  return {}, [msg]
+
+          # Discover enrolled repos
+          target_repo = os.environ.get('TARGET_REPO', '').strip()
+          if target_repo:
+              enrolled = [target_repo]
+              print(f'Targeting single repo: {target_repo}', flush=True)
+          else:
+              enrolled = []
+              page = 1
+              while True:
+                  repos, _ = gh('GET', f'/orgs/edri2or/repos?per_page=100&page={page}')
+                  if not repos:
+                      break
+                  for repo in repos:
+                      name = repo['full_name']
+                      if name == 'edri2or/ripo-skills-main':
+                          continue
+                      _, err = gh('GET', f'/repos/{name}/contents/.github/workflows/skill-sync.yml')
+                      if err is None:
+                          enrolled.append(name)
+                  if len(repos) < 100:
+                      break
+                  page += 1
+
+          print(f'Enrolled repos: {len(enrolled)}', flush=True)
+
+          hard_failures = 0
+          _default_branch_cache: dict = {}
+          summary_lines = ['## Distribution Results', '| Skill | Repo | Adapted | Status |', '|-------|------|---------|--------|']
+          warn_lines = []
+
+          for skill in skills:
               skill_path = f'exported-skills/{skill}/SKILL.md'
               if not os.path.exists(skill_path):
                   print(f'WARN: {skill_path} not found', flush=True)
