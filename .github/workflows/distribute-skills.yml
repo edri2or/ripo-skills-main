@@ -161,7 +161,7 @@ jobs:
           TARGET_REPO: ${{ inputs.target_repo }}
         run: |
           python3 << 'EOF'
-          import urllib.request, urllib.error, json, os, base64, re, sys, datetime
+          import urllib.request, urllib.error, json, os, base64, re, sys, datetime, subprocess
           try:
               import yaml
           except ImportError:
@@ -169,6 +169,7 @@ jobs:
               print('WARN: PyYAML not available — requires: blocks will be ignored', flush=True)
 
           token = os.environ['GH_TOKEN']
+          gh_env = {**os.environ, 'GH_TOKEN': token}
           skills = os.environ['SKILLS'].split()
           headers = {
               'Authorization': f'token {token}',
@@ -378,14 +379,17 @@ jobs:
                                   'head': fb_branch, 'base': default_branch,
                               })
                               if pr_err is None and pr_data:
-                                  import subprocess as _sp
-                                  _sp.run(
+                                  _merge = subprocess.run(
                                       ['gh', 'pr', 'merge', str(pr_data['number']),
                                        '--auto', '--squash', '--repo', repo],
-                                      env={**os.environ, 'GH_TOKEN': token},
-                                      capture_output=True,
+                                      env=gh_env,
+                                      capture_output=True, text=True,
+                                      timeout=30,
                                   )
-                                  status = f'⚠️ PR #{pr_data["number"]} → {pr_data["html_url"]} (auto-merge enabled)'
+                                  if _merge.returncode == 0:
+                                      status = f'⚠️ PR #{pr_data["number"]} → {pr_data["html_url"]} (auto-merge enabled)'
+                                  else:
+                                      status = f'⚠️ PR #{pr_data["number"]} → {pr_data["html_url"]} (auto-merge FAILED: {_merge.stderr.strip()})'
                               elif pr_err == 422:
                                   status = '⚠️ PR already open'
                               else:
