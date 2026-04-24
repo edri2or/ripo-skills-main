@@ -39,9 +39,11 @@ ripo-skills-main/
 │           ├── .claude-plugin/
 │           │   └── plugin.json      # Plugin manifest
 │           ├── .mcp.json            # Bundled MCP server configurations
-│           └── skills/              # 7 skills (git-commit, db-migration, doc-standard,
-│               └── ...              #   doc-updater, scaffold-feature, safe-refactor,
-│                                    #   enterprise-feature-scaffold)
+│           └── skills/              # 20 skills
+│               └── ...
+│       └── global/                  # Global skills plugin
+│           └── skills/              # 13 skills
+│               └── ...
 └── .github/workflows/
     └── documentation-enforcement.yml  # CI blocking gate
 ```
@@ -81,7 +83,8 @@ ripo-skills-main/
 | `policy/` | Rego policies consumed by Conftest |
 | `scripts/` | CI helper scripts |
 | `.claude/settings.json` | Global Claude Code permission model |
-| `.claude/plugins/engineering-std/` | Standard engineering skills plugin (7 skills + 5 MCP servers) |
+| `.claude/plugins/engineering-std/` | Standard engineering skills plugin (20 skills + 5 MCP servers) |
+| `.claude/plugins/global/` | Global skills plugin (13 skills, no MCP servers) |
 | `docs/skill-authoring.md` | Skill authoring guide: frontmatter rules, portability scoring, failure modes |
 
 ---
@@ -125,14 +128,14 @@ Dev toolchain (`@types/node`, `prettier`, `typescript`, `jest`, `@types/jest`, `
 
 ## Last Updated
 
-2026-04-24 — fixed 17 exported-skills description fields (quoting + trimming) to unblock auto-merge-sync validate; patched project-life-133 source via API; closed stale PR #138; opened PR #139
+2026-04-24 — merged 15 cascading "behind" PRs in project-life-130 manually; added `gh pr merge --auto --squash` to distribute-skills.yml fallback path + ADR-0020; opened PR #157 for manual merge
 
 ## Session Handoff
 <!-- auto-updated by /compact — do not edit manually -->
-**Last updated:** 2026-04-24 11:30
-**Intent:** Fix all 17 exported-skills with invalid description fields so every future skill sync PR auto-merges without manual intervention.
-**Key decisions:** Quote all descriptions (validator requires `"..."`); trim 12 descriptions to ≤250 chars; fix list-skills allowedTools→allowed-tools:; close PR #138 (stale feature); restore 3 over-trimmed descriptions post-simplify.
+**Last updated:** 2026-04-24 12:30
+**Intent:** Fix full skill sync pipeline — 17 exported-skills descriptions + auto-merge on distribute fallback PRs to eliminate cascading "behind" conflicts in enrolled repos.
+**Key decisions:** Quote all descriptions; trim 12 to ≤250 chars; add `gh pr merge --auto --squash` to distribute-skills.yml fallback PR; merged 15 cascading PRs manually in project-life-130.
 **Next:**
-- Merge PR #139 (claude/translate-hebrew-text-LhFgZ → main); branch is `claude/` so manual merge required
-- Verify distribute-skills.yml auto-distributes updated descriptions to enrolled repos after merge
-- Monitor next skill sync PR to confirm full end-to-end auto-merge works
+- Merge PR #139 (claude/translate-hebrew-text-LhFgZ → main) — includes distribute-skills.yml fix; manual merge required (claude/ prefix)
+- Run e2e test: trigger skill update in enrolled repo → verify PR auto-merges without intervention
+- Check project-life-132 — may use direct push without branch protection (no distribute PRs)

@@ -731,3 +731,27 @@ research document "אכיפת תיעוד וניהול מדיניות-כקוד ב
 - [ ] **אימות end-to-end**: לוודא שה-PR הסנכרון הבא מכל ריפו מגויס עובר auto-merge ללא התערבות.
 - [ ] **PR #64 project-life-130** — ענף `claude/review-documentation-UxyDo` עדיין פתוח (נשאר מסשן 2026-04-22).
 - [ ] **(אופציונלי) חילוץ validator**: להוציא את ה-Python inline מ-`auto-merge-sync.yml` לסקריפט `scripts/validate-skill-frontmatter.py` ולחבר כ-pre-commit hook.
+
+## [2026-04-24] תיקון cascading "behind" PRs ב-project-life-130 + auto-merge על distribute fallback PRs
+
+**Operator**: claude-sonnet-4-6 (autonomous agent)
+**Scope**: `.github/workflows/distribute-skills.yml`, `docs/adr/0020-auto-merge-on-distribute-fallback-prs.md`, `HANDOFF.md`, `CLAUDE.md`, `project-life-130` (external — 15 PRs merged via API)
+**Objective**: לתקן את הבעיה המבנית שגרמה לכל ה-distribute fallback PRs ב-project-life-130 להיתקע ב-"behind" state מיד לאחר מיזוג ה-PR הראשון, ולמנוע הישנות הבעיה.
+
+### Actions taken
+- **מיזוג ידני של 15 PRs ב-project-life-130** (`#121–#135`): לאחר שמיזוג PR #120 (db-migration) גרם לכל הענפים להיות `behind`, הופעלה לולאת Python: update-branch → wait for CI → merge, PR אחד בכל פעם — ניקוי מלא.
+- **commit `ecda3ca`**: הוספת `gh pr merge --auto --squash --repo <repo>` מיד לאחר פתיחת כל fallback PR ב-`distribute-skills.yml` — GitHub native auto-merge מטפל ב-update-branch+merge אוטונומית.
+- **commit `e41c5d5`**: יצירת `docs/adr/0020-auto-merge-on-distribute-fallback-prs.md` — נדרש על ידי `adr.rego` (כל שינוי ב-`.github/workflows/` חייב ADR).
+- **commit `5429d4e`**: עדכון `HANDOFF.md` ו-`CLAUDE.md § Session Handoff` לשימור הקשר לסשן הבא.
+- **פתיחת PR #157** על branch `claude/fix-distribute-auto-merge` — ממתין למיזוג ידני.
+
+### Decisions made
+- **auto-merge ולא manual sequencing**: GitHub native auto-merge מטפל ב-update-branch+merge ברגע שהבדיקות עוברות — מבטל תלות ב-GitHub App חיצוני (edri2or-p38-39962) שהיה איטי ולא אמין.
+- **ADR נפרד ולא inline comment**: `adr.rego` אוכף — כל שינוי ב-`.github/workflows/` חייב ADR ב-`docs/adr/`; ניסיון לדלג גרם ל-Documentation Policy Check failure.
+- **branch חדש ולא push ל-`claude/translate-hebrew-text-LhFgZ`**: PR #139 כבר מוזג; הcommits החדשים שייכים ל-PR נפרד.
+
+### Open items / follow-ups
+- [ ] **מיזוג PR #157** (`claude/fix-distribute-auto-merge → main`) — branch הוא `claude/` לכן נדרש merge ידני; לאחר המיזוג distribute-skills.yml המעודכן יגיע ל-main.
+- [ ] **e2e test**: לטריגר עדכון סקיל ב-enrolled repo עם `strict: true` branch protection ולאמת שה-PR auto-merges ללא התערבות.
+- [ ] **project-life-132**: לאמת שמשתמש ב-direct push (ללא branch protection) ואינו מושפע מהבעיה.
+- [ ] **(אופציונלי)** חילוץ Python validator מ-`auto-merge-sync.yml` ל-`scripts/validate-skill-frontmatter.py` כ-pre-commit hook.
