@@ -1,7 +1,3 @@
----
-description: Creates a properly formatted conventional commit (feat, fix, chore, docs, refactor, test) with a clear subject line and optional body. Use when the user asks to commit changes, write a commit message, or push code to git.
----
-
 # Git Commit Skill
 
 ## Role
