@@ -377,21 +377,15 @@ jobs:
                       existing_pj, _ = gh('GET', f'/repos/{repo}/contents/{pj_path}{ref_suffix}')
                       skill_ref = f'skills/{skill}/SKILL.md'
                       if existing_pj:
-                          pj_raw = base64.b64decode(existing_pj['content'].replace('\n', '') + '==').decode()
+                          pj_raw = base64.b64decode(existing_pj['content'].replace('\n', '')).decode()
                           pj_data = json.loads(pj_raw)
                           skills_list = pj_data.get('skills', [])
-                          if skill_ref not in skills_list:
-                              skills_list.append(skill_ref)
-                              skills_list.sort()
-                              pj_data['skills'] = skills_list
-                              pj_payload = {
-                                  'message': f'chore: register {skill} in {source_plugin}/plugin.json',
-                                  'content': base64.b64encode((json.dumps(pj_data, indent=2) + '\n').encode()).decode(),
-                                  'sha': existing_pj['sha'],
-                              }
-                              if branch:
-                                  pj_payload['branch'] = branch
-                              gh('PUT', f'/repos/{repo}/contents/{pj_path}', pj_payload)
+                          if skill_ref in skills_list:
+                              return
+                          skills_list.append(skill_ref)
+                          skills_list.sort()
+                          pj_data['skills'] = skills_list
+                          pj_msg = f'chore: register {skill} in {source_plugin}/plugin.json'
                       else:
                           pj_data = {
                               'name': source_plugin,
@@ -399,13 +393,16 @@ jobs:
                               'description': f'Skills distributed from ripo-skills-main.',
                               'skills': [skill_ref],
                           }
-                          pj_payload = {
-                              'message': f'chore: initialize {source_plugin} plugin with {skill}',
-                              'content': base64.b64encode((json.dumps(pj_data, indent=2) + '\n').encode()).decode(),
-                          }
-                          if branch:
-                              pj_payload['branch'] = branch
-                          gh('PUT', f'/repos/{repo}/contents/{pj_path}', pj_payload)
+                          pj_msg = f'chore: initialize {source_plugin} plugin with {skill}'
+                      pj_payload = {
+                          'message': pj_msg,
+                          'content': base64.b64encode((json.dumps(pj_data, indent=2) + '\n').encode()).decode(),
+                      }
+                      if existing_pj:
+                          pj_payload['sha'] = existing_pj['sha']
+                      if branch:
+                          pj_payload['branch'] = branch
+                      gh('PUT', f'/repos/{repo}/contents/{pj_path}', pj_payload)
 
                   if err is None:
                       status = '✅'
