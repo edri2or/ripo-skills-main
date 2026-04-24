@@ -1,11 +1,3 @@
----
-description: Bootstraps WIF + Secret Manager Terraform infrastructure for a new GCP project. Writes terraform/ files and a GitHub Actions workflow, triggers the workflow via API, waits for completion, and sets GitHub Secrets automatically. Use when setting up secure GitHub Actions secret management for a new system.
-synthesis-required: false
-  - JOURNEY.md
-adapted-by: skill-adapter
-adapted-on: 2026-04-19
----
-
 # GCP WIF Bootstrap
 
 ## Role
@@ -476,7 +468,7 @@ Secret Manager secrets (fill values manually via GCP Console):
 <list of secret_names, one per line, or "none">
 ```
 
-#### 6b. Append to JOURNEY.md
+#### 6b. Append to [your-journey-file]
 
 Insert a new entry before `## Entry Template` (or at EOF if no such block):
 
@@ -531,7 +523,7 @@ Secret Manager secrets created (values are EMPTY — fill via GCP Console):
 Derives `github_repo` from git remote (handles proxy URLs), derives `project_id` from repo name.
 Prints summary table, waits for "Proceed?". Writes 6 Terraform files + workflow YAML. Commits,
 pushes, triggers `workflow_dispatch`. Polls every 30s. When workflow succeeds: updates
-`CLAUDE.md` and `JOURNEY.md`, prints summary.
+`CLAUDE.md` and `[your-journey-file]`, prints summary.
 
 **User:** `/gcp-wif-bootstrap` (org is NOT edri2or)
 
@@ -551,4 +543,4 @@ Waits for explicit confirmation.
 **Agent behaviour:**
 Prints: "FAIL: workflow failed — check GitHub Actions logs at
 https://github.com/<github_repo>/actions/workflows/gcp-bootstrap.yml"
-Stops. Does not update CLAUDE.md or JOURNEY.md (no successful bootstrap to document).
+Stops. Does not update CLAUDE.md or [your-journey-file] (no successful bootstrap to document).
