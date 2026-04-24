@@ -1,7 +1,3 @@
----
-description: Audits all exported skills against their sources. Detects stale exports (source modified after last export), orphaned exports (no local source found), and reports portability scores. Use before /push-skills or after editing skills to confirm the export layer is clean.
----
-
 # Skill Audit
 
 ## Role
