@@ -1,6 +1,6 @@
 ---
 name: skill-adapter
-description: "Re-specializes synthesized skills for the current repository. Scans .claude/commands/ for skills marked synthesis-required: true, discovers target-repo equivalents for each placeholder, and applies substitutions automatically. Use after /push-skills to adapt incoming skills to this repo."
+description: "Re-specializes synthesized skills for the current repository. Scans .claude/commands/ for skills marked synthesis-required: true and applies placeholder substitutions automatically. Use after /push-skills to adapt incoming skills to this repo."
 allowed-tools:
   - Write
   - Bash(python3 *)

@@ -1,6 +1,6 @@
 ---
 name: gcp-wif-bootstrap
-description: "Bootstraps WIF + Secret Manager Terraform infrastructure for a new GCP project. Writes terraform/ files and a GitHub Actions workflow, triggers the workflow via API, waits for completion, and sets GitHub Secrets automatically. Use when setting up secure GitHub Actions secret management for a new system."
+description: "Bootstraps WIF + Secret Manager Terraform infrastructure for a new GCP project. Writes terraform/ files and a GitHub Actions workflow, then triggers it and sets GitHub Secrets. Use when setting up secure secret management for GitHub Actions."
 allowed-tools:
   - Read
   - Write

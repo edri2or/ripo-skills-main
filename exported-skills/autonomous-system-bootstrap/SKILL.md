@@ -1,6 +1,6 @@
 ---
 name: autonomous-system-bootstrap
-description: Generates and executes idempotent GCP Cloud Shell command batches for autonomous system infrastructure bootstrap. Includes checkpoint validation after each batch and produces a structured runbook. Use when bootstrapping GCP Workload Identity Federation, Secret Manager, or [your-railway] environment injection for a new autonomous agent deployment.
+description: "Generates and executes idempotent GCP Cloud Shell command batches for autonomous system bootstrap, with checkpoint validation and a structured runbook. Use when bootstrapping WIF, Secret Manager, or [your-railway] for a new agent deployment."
 allowed-tools:
   - Read
   - Grep
