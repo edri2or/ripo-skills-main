@@ -3,7 +3,6 @@ name: cross-repo-success-synthesis
 description: "Mines partial successes across many repos, verifies each ran autonomously via commit/CI evidence, web-validates the join, and synthesizes one end-to-end autonomous process. Use when fragments worked in separate projects and you want them combined."
 allowed-tools:
   - Read
-  - Bash
   - WebSearch
   - WebFetch
   - mcp__github__search_repositories
@@ -11,8 +10,6 @@ allowed-tools:
   - mcp__github__list_commits
   - mcp__github__get_commit
   - mcp__github__get_file_contents
-  - mcp__github__list_pull_requests
-  - mcp__github__pull_request_read
   - mcp__github__search_pull_requests
   - mcp__github__search_issues
 maturity: experimental
@@ -62,6 +59,7 @@ Wait for confirmation before Step 2.
 ### Step 2: Repo Discovery
 
 Use `mcp__github__search_repositories` to enumerate candidate repos in the confirmed scope.
+Cap initial enumeration at 50 repos; if more, ask the user to narrow scope before filtering.
 For each candidate, record: name, last-pushed date, primary language, brief description.
 
 Filter to repos plausibly related to the target process (keyword overlap with the user's
@@ -75,6 +73,9 @@ process. Use:
 - `mcp__github__search_code` for code symbols, function names, config keys
 - `mcp__github__search_pull_requests` and `mcp__github__search_issues` for narrative context
   (PR titles, issue descriptions often describe what worked vs. failed)
+
+Run the three searches per repo in parallel (single tool-call batch). Across repos, batch
+all searches in one parallel call set.
 
 Build a **Fragment Candidate Table** with columns:
 `repo | path | symbol/PR# | claimed capability | source signal (code / PR / issue)`
@@ -96,12 +97,15 @@ For each candidate, verify it actually succeeded *and* ran autonomously. A fragm
    language in PR/issue. If the fragment is interactive-only, mark it ⚠️ NOT AUTONOMOUS and
    exclude from synthesis unless the user lowered the bar in Step 1.
 
-Update each row with:
-`verified: ✅ / 🔶 PARTIAL / ❌ NO EVIDENCE`
-plus the specific commit SHA(s) and PR/run URL(s) cited.
+Run the three sub-checks per fragment in parallel. **Hard cap: 60 verification calls total
+per invocation;** if exceeded, stop and ask the user to narrow scope.
 
-**Hard rule:** if you cannot produce a commit SHA or PR URL, the fragment is ❌ NO EVIDENCE —
-do not promote it. Never cite a SHA you have not retrieved via the GitHub MCP tools.
+Update each row with `verified:` set to one of:
+- `✅ VERIFIED` — all three checks passed
+- `🔶 PARTIAL` — existence + run evidence, but autonomy signal missing or weak
+- `❌ NO EVIDENCE` — at least one check failed, or no commit SHA / PR URL available
+
+Cite the specific commit SHA(s) and PR/run URL(s) per row.
 
 ### Step 5: Web Cross-Check (External Validation)
 
@@ -111,11 +115,11 @@ run 1–3 WebSearch queries to confirm the architecture is technically realistic
 - Known incompatibilities or failure modes between the fragments' technologies
 - Public benchmarks of similar pipelines
 
-If the search returns no precedent for the specific combination, flag the join as
-**NOVEL / UNVERIFIED** in the final report — do not silently endorse it.
+If no precedent is found for the specific combination, flag the join as **NOVEL / UNVERIFIED**.
 
-Use `WebFetch` only when a search snippet is insufficient to verify a claim. Limit: 2 fetches
-total.
+Use `WebFetch` only when a search snippet is insufficient to verify a claim.
+
+**External-call budget: 5 total per invocation (3 searches + 2 fetches). Do not exceed.**
 
 ### Step 6: Synthesis
 
@@ -129,9 +133,11 @@ If any step has only ❌ NO EVIDENCE candidates: state "**EVIDENCE GAP**" for th
 recommend either (a) running a new experiment in one of the scanned repos or (b) lowering
 the autonomy bar.
 
-### Step 7: Self-Critique Pass (Anti-Hallucination Gate)
+### Step 7: Truth Protocol Pass
 
-Before printing the final report, audit your own output:
+Before printing the final report, audit your own output. Reuse the retrieval results from
+Step 4 — do not re-fetch.
+
 - For every cited file path: was it retrieved via `mcp__github__get_file_contents`? If not,
   remove the citation.
 - For every cited commit SHA: was it returned by `mcp__github__list_commits` or
@@ -140,9 +146,6 @@ Before printing the final report, audit your own output:
   `requirements.txt` / equivalent that you actually read? If not, mark `[UNVERIFIED NAME]`.
 - For every "ran autonomously" claim: name the specific signal (workflow file path,
   PR author = bot, schedule cron, etc.). No signal → downgrade to 🔶 PARTIAL.
-
-This step is mandatory — package-hallucination rates of ~20% (and up to 84% for
-recency-flavored prompts) make this gate non-negotiable.
 
 ### Step 8: Output Report (Chat Only)
 
