@@ -1,6 +1,6 @@
 ---
 name: gcp-wif-bootstrap
-description: "Bootstraps WIF + Secret Manager Terraform infrastructure for a new GCP project. Writes terraform/ files and a GitHub Actions workflow, then triggers it and sets GitHub Secrets. Use when setting up secure secret management for GitHub Actions."
+description: "Bootstraps WIF + Secret Manager Terraform for a new GCP project, with declarative github_actions_secret resources and a GitHub Actions workflow on the App-token-via-WIF chain — no PAT required. Use when setting up secure secret management for a new system."
 allowed-tools:
   - Read
   - Write
@@ -8,12 +8,13 @@ allowed-tools:
   - Edit
 maturity: experimental
 source-experiment: core
-evidence: "Rewritten 2026-04-18 — GitHub Actions-first architecture."
+evidence: "Rewritten 2026-04-18 — GitHub Actions-first architecture. Updated 2026-04-25 — encodes the App-token-via-WIF + Terraform-managed `github_actions_secret` pattern proven end-to-end across PRs #7/#8/#9 (ADR 0010/0011); no longer requires `PUSH_TARGET_TOKEN`."
 scope: global
-portability: 70
+portability: 55
 synthesis-required: true
 blocked-refs:
   - JOURNEY.md
+  - /actions/secrets/
   - /gcp-wif-bootstrap
 ---
 
@@ -21,10 +22,11 @@ blocked-refs:
 
 ## Role
 
-You are a GCP Infrastructure Engineer. You provision a complete GCP project with Workload
-Identity Federation and Secret Manager by writing Terraform files and a GitHub Actions
-workflow, then triggering the workflow via the GitHub API. You never run `terraform` or
-`gcloud` directly — the GitHub Actions runner does that.
+You are a GCP Infrastructure Engineer. You provision a GCP project with Workload Identity
+Federation and Secret Manager by writing Terraform files plus a GitHub Actions workflow.
+The workflow's `push` trigger fires it automatically on commit. You never run `terraform`
+or `gcloud` directly — the runner does that, authenticated via WIF and a job-time GitHub
+App installation token (no classic PAT involved at any point).
 
 ## Org constants (hardcoded for or-infra.com)
 
@@ -34,19 +36,24 @@ workflow, then triggering the workflow via the GitHub API. You never run `terraf
 | `TF_SA` | `terraform-sa@tf-seed-1776532715.iam.gserviceaccount.com` |
 | `TF_BUCKET` | `tf-state-905978345393` |
 | `WIF_PROVIDER` | `projects/725011244321/.../github-pool/providers/github-provider` |
+| `SHARED_IDENTITY_PROJECT` | `edri2or-shared-identity` (hosts the org's GitHub App credentials in Secret Manager — see ADR 0007) |
 | `REGION` | `us-central1` |
 
 ⚠ If the target org is not `edri2or` / `or-infra.com`, these values must be replaced before proceeding.
 
-## Prerequisites (one-time per repo — verify before running)
+## Prerequisites (one-time per org — verify before running)
 
-| Prerequisite | How to set |
-|---|---|
-| `PUSH_TARGET_TOKEN` repo secret | Must be set as a **repo-level** secret (org secrets with restricted visibility are not inherited). Set via GitHub UI → Settings → Secrets, or via the PyNaCl API pattern. |
-| `TF_VAR_BILLING_ACCOUNT` org secret | Set once at org level — inherited by all repos. |
-| `billing.user` on billing account | `gcloud billing accounts add-iam-policy-binding <BA_ID> --member=serviceAccount:<TF_SA> --role=roles/billing.user` — must be run as billing account admin. |
+| Prerequisite | How to verify | Failure mode if missing |
+|---|---|---|
+| Org GitHub App with `secrets: write` permission, installed on All repositories of the org | App settings UI → Permissions includes "Repository secrets — Read & write"; Installation → Repository access = "All repositories" | `terraform apply` 403s on `github_actions_secret` create |
+| Shared-identity GCP project exists with `GITHUB_APP_ID` + `GITHUB_APP_PRIVATE_KEY` populated in Secret Manager | `gcloud secrets list --project=<SHARED_IDENTITY_PROJECT>` (run by operator with `secretmanager.viewer`) | `fetch-app-credentials` step 404s |
+| Bootstrap SA (`TF_SA`) is in the shared-identity project's `var.consumer_service_accounts` as a `_bootstrap` entry | Inspect `terraform/shared-identity/variables.tf` in the shared-identity-hosting repo (e.g., `project-life-134`) | `fetch-app-credentials` step 403s on `gcloud secrets versions access` |
+| `TF_VAR_BILLING_ACCOUNT` org secret set | GitHub UI → Org → Secrets and variables → Actions | `terraform apply` errors on missing `var.billing_account` |
+| `billing.user` on billing account granted to `TF_SA` | `gcloud billing accounts get-iam-policy <BA_ID>` (run by billing admin) | `google_project` create errors |
 
-If any prerequisite is missing, the workflow will fail with a clear error.
+`PUSH_TARGET_TOKEN` is **not** required (decommissioned per ADR 0010 — secrets are now written declaratively by Terraform via the `integrations/github` provider, fed by a job-time GitHub App installation token).
+
+If any prerequisite is missing, **HALT** and report — fixing them is outside this skill's per-repo scope.
 
 ## Instructions
 
@@ -113,7 +120,8 @@ Write all files below to `terraform/`, substituting all `<placeholders>`.
 terraform {
   required_version = ">= 1.5"
   required_providers {
-    google = { source = "hashicorp/google", version = "~> 5.0" }
+    google = { source = "hashicorp/google",      version = "~> 5.0" }
+    github = { source = "integrations/github",   version = "~> 6.0" }
   }
   backend "gcs" {
     bucket = "<TF_BUCKET>"
@@ -121,7 +129,18 @@ terraform {
   }
 }
 
+locals {
+  github_owner     = split("/", var.github_repo)[0]
+  github_repo_name = split("/", var.github_repo)[1]
+}
+
 provider "google" {}
+
+# GitHub App installation token is supplied via GITHUB_TOKEN env var by the
+# bootstrap workflow (ADR 0010).
+provider "github" {
+  owner = local.github_owner
+}
 ```
 
 **`terraform/variables.tf`**
@@ -220,8 +239,37 @@ resource "google_secret_manager_secret_iam_member" "reader" {
 }
 ```
 
+**`terraform/github_secrets.tf`**
+```hcl
+# WIF + project identity propagated declaratively to repo Actions secrets.
+# Replaces the runtime PyNaCl PUT loop retired in ADR 0010. Use `value`
+# (not `plaintext_value` — deprecated, see ADR 0011).
+resource "github_actions_secret" "wif_provider" {
+  repository  = local.github_repo_name
+  secret_name = "WIF_PROVIDER"
+  value       = google_iam_workload_identity_pool_provider.github.name
+}
+
+resource "github_actions_secret" "wif_service_account" {
+  repository  = local.github_repo_name
+  secret_name = "WIF_SERVICE_ACCOUNT"
+  value       = google_service_account.github_actions.email
+}
+
+resource "github_actions_secret" "gcp_project_id" {
+  repository  = local.github_repo_name
+  secret_name = "GCP_PROJECT_ID"
+  value       = google_project.app.project_id
+}
+```
+
+To add a fourth repo Actions secret in the future, append a fourth resource to
+this file — no workflow YAML change needed.
+
 **`terraform/outputs.tf`**
 ```hcl
+# Informational only — the secret-shape source of truth is github_secrets.tf,
+# which references the GCP resources directly.
 output "workload_identity_provider" {
   value = google_iam_workload_identity_pool_provider.github.name
 }
@@ -233,9 +281,63 @@ output "project_id" {
 }
 ```
 
-### Step 3: Write GitHub Actions bootstrap workflow
+### Step 3: Write the composite action + GitHub Actions bootstrap workflow
 
-Write `.github/workflows/gcp-bootstrap.yml`:
+#### 3a. Vendor the `fetch-app-credentials` composite action
+
+Write `.github/actions/fetch-app-credentials/action.yml`:
+
+```yaml
+name: Fetch GitHub App credentials from shared-identity Secret Manager
+description: |
+  Reads GITHUB_APP_ID and GITHUB_APP_PRIVATE_KEY from the shared-identity GCP
+  project's Secret Manager. Caller must have already authenticated via
+  google-github-actions/auth. Pair with actions/create-github-app-token@v1
+  to mint a job-time installation token (ADR 0007 / 0008).
+
+inputs:
+  shared-identity-project-id:
+    description: GCP project hosting the shared GitHub App credentials.
+    required: false
+    default: edri2or-shared-identity
+
+outputs:
+  app_id:
+    description: GitHub App numeric ID.
+    value: ${{ steps.fetch.outputs.app_id }}
+  private_key:
+    description: GitHub App RSA PEM private key (multi-line).
+    value: ${{ steps.fetch.outputs.private_key }}
+
+runs:
+  using: composite
+  steps:
+    - id: fetch
+      shell: bash
+      env:
+        SHARED_IDENTITY_PROJECT_ID: ${{ inputs.shared-identity-project-id }}
+      run: |
+        set -euo pipefail
+        # Capture first so $(...) strips any trailing newline, then printf
+        # re-adds exactly one — keeps the heredoc delimiter on its own line
+        # even when the secret value (e.g. a numeric APP_ID) has none.
+        APP_ID="$(gcloud secrets versions access latest \
+          --secret=GITHUB_APP_ID \
+          --project="${SHARED_IDENTITY_PROJECT_ID}")"
+        PRIVATE_KEY="$(gcloud secrets versions access latest \
+          --secret=GITHUB_APP_PRIVATE_KEY \
+          --project="${SHARED_IDENTITY_PROJECT_ID}")"
+        {
+          printf 'app_id<<IDEOF\n%s\nIDEOF\n' "$APP_ID"
+          printf 'private_key<<PEMEOF\n%s\nPEMEOF\n' "$PRIVATE_KEY"
+        } >> "$GITHUB_OUTPUT"
+```
+
+The `printf` (not heredoc) is intentional — see the inline comment. Heredocs
+on a value without a trailing newline merge with the closing delimiter and
+corrupt `$GITHUB_OUTPUT` (PR #8 root cause).
+
+#### 3b. Write `.github/workflows/gcp-bootstrap.yml`
 
 ```yaml
 name: GCP Bootstrap
@@ -278,6 +380,19 @@ jobs:
           workload_identity_provider: "projects/725011244321/locations/global/workloadIdentityPools/github-pool/providers/github-provider"
           service_account: "terraform-sa@tf-seed-1776532715.iam.gserviceaccount.com"
 
+      - id: fetch-app-secrets
+        uses: ./.github/actions/fetch-app-credentials
+
+      # Scoped to the target repo only (least privilege). The org App is
+      # installed on All repositories so the per-repo install is implicit.
+      - id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ steps.fetch-app-secrets.outputs.app_id }}
+          private-key: ${{ steps.fetch-app-secrets.outputs.private_key }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "1.9"
@@ -295,97 +410,41 @@ jobs:
         working-directory: terraform
         env:
           TF_VAR_billing_account: ${{ secrets.TF_VAR_BILLING_ACCOUNT }}
-
-      - name: Set GitHub Secrets
-        run: |
-          pip install PyNaCl -q
-          python3 /dev/stdin <<'PYEOF'
-          import os, json, base64, urllib.request
-          from nacl import encoding, public
-
-          token = os.environ['GITHUB_TOKEN']
-          github_repo = os.environ['GITHUB_REPO']
-          owner, repo = github_repo.split('/', 1)
-
-          outputs = json.loads(os.popen('terraform -chdir=terraform output -json').read())
-
-          headers = {
-              'Authorization': f'Bearer {token}',
-              'Accept': 'application/vnd.github+json',
-              'Content-Type': 'application/json',
-              'X-GitHub-Api-Version': '2022-11-28',
-          }
-
-          with urllib.request.urlopen(urllib.request.Request(
-              f'https://api.github.com/repos/{owner}/{repo}/actions/secrets/public-key',
-              headers=headers
-          ), timeout=15) as r:
-              key_data = json.loads(r.read())
-
-          pk = public.PublicKey(key_data['key'].encode(), encoding.Base64Encoder())
-          box = public.SealedBox(pk)
-
-          def encrypt(v):
-              return base64.b64encode(box.encrypt(v.encode())).decode()
-
-          secrets = {
-              'WIF_PROVIDER':        outputs['workload_identity_provider']['value'],
-              'WIF_SERVICE_ACCOUNT': outputs['service_account_email']['value'],
-              'GCP_PROJECT_ID':      outputs['project_id']['value'],
-          }
-
-          for name, value in secrets.items():
-              payload = json.dumps({
-                  'encrypted_value': encrypt(value),
-                  'key_id': key_data['key_id'],
-              }).encode()
-              req = urllib.request.Request(
-                  f'https://api.github.com/repos/{owner}/{repo}/actions/secrets/{name}',
-                  data=payload, headers=headers, method='PUT'
-              )
-              with urllib.request.urlopen(req, timeout=15) as r:
-                  print(f'OK {name} ({r.status})')
-          PYEOF
-        env:
-          GITHUB_TOKEN: ${{ secrets.PUSH_TARGET_TOKEN }}
+          # Feeds the integrations/github provider — see ADR 0010.
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
 ```
 
-### Step 4: Commit, push, and poll
+> **Optional: chain on `Shared Identity Bootstrap`** — if the same repo also
+> hosts the shared-identity Terraform (i.e., this is the org's
+> infrastructure repo, like `project-life-134`), add a `workflow_run`
+> trigger so main-branch pushes flow shared-identity → gcp-bootstrap in
+> order. See ADR 0010 §7 for the pattern. New repos using this skill almost
+> never need this — they consume the shared-identity project but don't
+> manage it.
+
+### Step 4: Commit, push, and verify
 
 ```bash
-git add terraform/ .github/workflows/gcp-bootstrap.yml
+git add terraform/ .github/actions/fetch-app-credentials/ .github/workflows/gcp-bootstrap.yml
 git commit -m "chore: add GCP WIF bootstrap infrastructure"
 git push
 ```
 
-The `push` trigger fires automatically on the push above. Poll for completion (up to 15 minutes):
+The `push` trigger on `terraform/**` fires automatically. Verify the run via
+the GitHub MCP tools (verification path uses no PAT and no `gh` CLI):
 
-```bash
-REPO="<github_repo>"
-sleep 10
-for i in $(seq 1 30); do
-  STATUS=$(curl -s \
-    -H "Authorization: Bearer $PUSH_TARGET_TOKEN" \
-    -H "Accept: application/vnd.github+json" \
-    "https://api.github.com/repos/$REPO/actions/workflows/gcp-bootstrap.yml/runs?per_page=1&branch=$(git branch --show-current)" \
-    | python3 -c "import sys,json; r=json.load(sys.stdin).get('workflow_runs',[]); print(r[0]['status']+'|'+r[0].get('conclusion','')) if r else print('pending|')")
-  echo "[$i/30] $STATUS"
-  case "$STATUS" in
-    *completed*success*) echo "Workflow complete."; break ;;
-    *failure*|*cancelled*) echo "FAIL: workflow failed — check GitHub Actions logs"; exit 1 ;;
-  esac
-  sleep 30
-done
-```
+1. Open a PR for the branch via `mcp__github__create_pull_request`.
+2. Poll `mcp__github__pull_request_read` with `method: get_check_runs` every
+   ~30s until the `GCP Bootstrap` check is `completed` + `success`.
 
-If the workflow succeeds, proceed to Step 5 (optional autonomy test) or directly to Step 6 (document). If it times out, check GitHub Actions logs manually.
+If the run fails:
+- `success: false` on `terraform apply` with `403 fetch-app-credentials` →
+  bootstrap SA missing from shared-identity `_bootstrap` consumers. **HALT**.
+- `403 github_actions_secret` create → org App missing `secrets: write`, or
+  the App was installed before the permission was added (manifest changes
+  don't retroactively update installs — operator must re-accept in the UI).
 
-> **Known limitation — `workflow_dispatch`:** GitHub's dispatch API returns 404 for workflows
-> that exist only on a feature branch. The `push` trigger in `gcp-bootstrap.yml` fires
-> automatically on every push that touches `terraform/**`, so no manual dispatch is needed
-> for the bootstrap itself. For any *additional* workflow added on a feature branch (e.g.,
-> an autonomy test), use a `push` trigger scoped to that branch and file path until the
-> workflow is merged to the default branch.
+Do not retry automatically — print the failure and stop.
 
 ### Step 5 (optional): Autonomy test
 
@@ -499,10 +558,11 @@ Insert a new entry before `## Entry Template` (or at EOF if no such block):
 **Objective**: Provision GCP project `<project_id>` with WIF + Secret Manager
 
 ### Actions taken
-- Wrote Terraform files (`versions.tf`, `variables.tf`, `main.tf`, `wif.tf`, `secrets.tf`, `outputs.tf`)
-- Wrote `.github/workflows/gcp-bootstrap.yml` — runs Terraform via Seed Project WIF
-- Triggered `workflow_dispatch` — workflow completed successfully
-- GitHub Secrets set: `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`, `GCP_PROJECT_ID`
+- Wrote Terraform files (`versions.tf`, `variables.tf`, `main.tf`, `wif.tf`, `secrets.tf`, `github_secrets.tf`, `outputs.tf`)
+- Vendored composite action `.github/actions/fetch-app-credentials/action.yml`
+- Wrote `.github/workflows/gcp-bootstrap.yml` — App-token-via-WIF chain (no `PUSH_TARGET_TOKEN`)
+- Pushed; `push` trigger fired `gcp-bootstrap.yml`; verified completion via MCP
+- GitHub Actions secrets created declaratively by Terraform: `WIF_PROVIDER`, `WIF_SERVICE_ACCOUNT`, `GCP_PROJECT_ID`
 - Created empty Secret Manager secrets: <secret_names or "none">
 
 ### Open items / follow-ups
@@ -512,11 +572,12 @@ Insert a new entry before `## Entry Template` (or at EOF if no such block):
 #### 6c. Print summary
 
 ```text
-✓ Terraform files written    : terraform/ (6 files)
+✓ Terraform files written    : terraform/ (7 files)
+✓ Composite action vendored  : .github/actions/fetch-app-credentials/
 ✓ Workflow written           : .github/workflows/gcp-bootstrap.yml
-✓ Workflow triggered         : gcp-bootstrap.yml
+✓ Workflow triggered (push)  : gcp-bootstrap.yml
 ✓ Workflow completed         : success
-✓ GitHub Secrets set         : WIF_PROVIDER, WIF_SERVICE_ACCOUNT, GCP_PROJECT_ID
+✓ GitHub Actions secrets     : WIF_PROVIDER, WIF_SERVICE_ACCOUNT, GCP_PROJECT_ID  (declared in github_secrets.tf)
 ✓ CLAUDE.md updated
 ✓ JOURNEY.md updated
 
@@ -532,17 +593,24 @@ Secret Manager secrets created (values are EMPTY — fill via GCP Console):
 4. **NEVER overwrite an existing `terraform/` directory** without warning the user first.
 5. **NEVER pass secret values via CLI args** — use env vars and stdin only.
 6. **NEVER print token values** anywhere in output or logs.
-7. **If the workflow fails**, print the error and stop — do not retry automatically.
+7. **NEVER add a `Set GitHub Secrets` step** that PUTs to `/actions/secrets/` via PyNaCl — that pattern was retired in ADR 0010. Repo Actions secrets that mirror GCP outputs MUST be `github_actions_secret` resources in `terraform/github_secrets.tf`.
+8. **NEVER reference `secrets.PUSH_TARGET_TOKEN`** in any workflow this skill writes — the classic PAT is being decommissioned (ADR 0010 follow-up). Use the App-token-via-WIF chain (`fetch-app-credentials` → `actions/create-github-app-token@v1`) instead.
+9. **NEVER use `plaintext_value`** on `github_actions_secret` — the attribute is deprecated (ADR 0011). Use `value`.
+10. **If a prerequisite (org App, shared-identity SM, `_bootstrap` consumer binding) is missing**, HALT and report — do not attempt to provision it from this skill. Those are org-level / cross-repo concerns.
+11. **If the workflow fails**, print the error and stop — do not retry automatically.
 
 ## Examples
 
 **User:** `/gcp-wif-bootstrap` (standard case)
 
 **Agent behaviour:**
-Derives `github_repo` from git remote (handles proxy URLs), derives `project_id` from repo name.
-Prints summary table, waits for "Proceed?". Writes 6 Terraform files + workflow YAML. Commits,
-pushes, triggers `workflow_dispatch`. Polls every 30s. When workflow succeeds: updates
-`CLAUDE.md` and `[your-journey-file]`, prints summary.
+Verifies prerequisites (org App, shared-identity SM, `_bootstrap` consumer binding) — HALTs
+if any are missing. Derives `github_repo` from git remote (handles proxy URLs), derives
+`project_id` from repo name. Prints summary table, waits for "Proceed?". Writes 7 Terraform
+files (incl. `github_secrets.tf`) + the `fetch-app-credentials` composite action +
+`gcp-bootstrap.yml`. Commits, pushes — `push` trigger fires automatically. Opens a PR
+and verifies completion via `mcp__github__pull_request_read` (`method: get_check_runs`).
+When the workflow succeeds: updates `CLAUDE.md` and `[your-journey-file]`, prints summary.
 
 **User:** `/gcp-wif-bootstrap` (org is NOT edri2or)
 
