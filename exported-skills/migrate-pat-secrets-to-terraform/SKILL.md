@@ -23,7 +23,6 @@ evidence: "First use 2026-04-25 — extracted from project-life-134 PRs #7 + #8 
 scope: global
 portability: 100
 synthesis-required: false
-source-repo: edri2or/project-life-134
 ---
 
 # Migrate PAT Secrets to Terraform
