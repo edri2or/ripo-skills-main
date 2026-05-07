@@ -50,51 +50,31 @@ def _auth_headers(token: str) -> dict:
 def _sm_write(name: str, value: str):
     token = _gcp_token()
     headers = _auth_headers(token)
-    secret_url = _sm_url(name)
-
+    create_body = json.dumps({"replication": {"automatic": {}}}).encode()
+    create_req = urllib.request.Request(
+        f"https://secretmanager.googleapis.com/v1/projects/{GCP_PROJECT_ID}/secrets?secretId={name}",
+        data=create_body,
+        headers=headers,
+        method="POST",
+    )
     try:
-        req = urllib.request.Request(secret_url, headers=headers)
-        urllib.request.urlopen(req, timeout=10)
+        urllib.request.urlopen(create_req, timeout=10)
     except urllib.error.HTTPError as e:
-        if e.code != 404:
+        if e.code != 409:
             raise
-        create_body = json.dumps({"replication": {"automatic": {}}}).encode()
-        create_req = urllib.request.Request(
-            f"https://secretmanager.googleapis.com/v1/projects/{GCP_PROJECT_ID}/secrets?secretId={name}",
-            data=create_body,
-            headers=headers,
-            method="POST",
-        )
-        try:
-            urllib.request.urlopen(create_req, timeout=10)
-        except urllib.error.HTTPError as e2:
-            if e2.code != 409:
-                raise
 
     payload = {"payload": {"data": base64.b64encode(value.encode()).decode()}}
     body = json.dumps(payload).encode()
-    req = urllib.request.Request(f"{secret_url}:addVersion", data=body, headers=headers, method="POST")
+    req = urllib.request.Request(f"{_sm_url(name)}:addVersion", data=body, headers=headers, method="POST")
     urllib.request.urlopen(req, timeout=10)
     print(f"[SM] wrote {name}", flush=True)
 
 
-def _sm_exists(name: str) -> bool:
-    token = _gcp_token()
-    url = f"{_sm_url(name)}/versions/latest"
-    try:
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
-        urllib.request.urlopen(req, timeout=10)
-        return True
-    except urllib.error.HTTPError:
-        return False
-
-
-def _manifest() -> dict:
+def _build_manifest() -> dict:
     install_callback_url = REDIRECT_URL.replace("/callback", "/install-callback") if REDIRECT_URL else ""
     m = {
         "name": APP_NAME,
         "url": f"https://github.com/apps/{APP_NAME.lower().replace(' ', '-')}",
-        "hook_attributes": {},
         "redirect_url": REDIRECT_URL,
         "callback_urls": [install_callback_url] if install_callback_url else [],
         "setup_url": install_callback_url,
@@ -107,9 +87,12 @@ def _manifest() -> dict:
     return m
 
 
+_MANIFEST = _build_manifest()
+
+
 def _manifest_html() -> str:
     post_url = f"https://github.com/organizations/{GITHUB_ORG}/settings/apps/new"
-    manifest_json = json.dumps(_manifest())
+    manifest_json = json.dumps(_MANIFEST)
     return f"""<!DOCTYPE html>
 <html>
 <head><title>Register GitHub App</title></head>

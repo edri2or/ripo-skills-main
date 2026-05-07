@@ -159,26 +159,19 @@ jobs:
           fi
 
       - name: Deploy Cloud Run receiver
+        id: deploy
         if: steps.idempotent.outputs.already_registered != 'true'
         run: |
           PERMS_B64=$(printf '%s' "$PERMISSIONS_JSON" | base64 -w 0)
           EVENTS_B64=$(printf '%s' "$EVENTS_JSON" | base64 -w 0)
-          gcloud run deploy "$SERVICE_NAME" \
+          URL=$(gcloud run deploy "$SERVICE_NAME" \
             --image="$IMAGE" \
             --region="$REGION" \
             --platform=managed \
             --allow-unauthenticated \
             --service-account="${{ vars[inputs.wif_sa_var] }}" \
             --project="${{ inputs.gcp_project_id }}" \
-            --set-env-vars="GCP_PROJECT_ID=${{ inputs.gcp_project_id }},GITHUB_ORG=${{ inputs.github_org }},APP_NAME=${{ inputs.app_name }},SECRET_PREFIX=${{ inputs.secret_prefix }},APP_PERMISSIONS=${PERMS_B64},APP_EVENTS=${EVENTS_B64},WEBHOOK_URL=${{ inputs.webhook_url }}"
-
-      - name: Get service URL
-        id: url
-        if: steps.idempotent.outputs.already_registered != 'true'
-        run: |
-          URL=$(gcloud run services describe "$SERVICE_NAME" \
-            --region="$REGION" \
-            --project="${{ inputs.gcp_project_id }}" \
+            --set-env-vars="GCP_PROJECT_ID=${{ inputs.gcp_project_id }},GITHUB_ORG=${{ inputs.github_org }},APP_NAME=${{ inputs.app_name }},SECRET_PREFIX=${{ inputs.secret_prefix }},APP_PERMISSIONS=${PERMS_B64},APP_EVENTS=${EVENTS_B64},WEBHOOK_URL=${{ inputs.webhook_url }}" \
             --format='value(status.url)')
           echo "service_url=$URL" >> "$GITHUB_OUTPUT"
 
@@ -188,7 +181,7 @@ jobs:
           gcloud run services update "$SERVICE_NAME" \
             --region="$REGION" \
             --project="${{ inputs.gcp_project_id }}" \
-            --update-env-vars="REDIRECT_URL=${{ steps.url.outputs.service_url }}/callback"
+            --update-env-vars="REDIRECT_URL=${{ steps.deploy.outputs.service_url }}/callback"
 
       - name: Grant public access
         if: steps.idempotent.outputs.already_registered != 'true'
@@ -202,7 +195,7 @@ jobs:
       - name: Health check
         if: steps.idempotent.outputs.already_registered != 'true'
         run: |
-          URL="${{ steps.url.outputs.service_url }}"
+          URL="${{ steps.deploy.outputs.service_url }}"
           for i in $(seq 1 24); do
             if curl -sf -m 8 "${URL}/health" > /dev/null 2>&1; then
               echo "Receiver healthy"; break
@@ -213,14 +206,14 @@ jobs:
       - name: Print manifest URL
         if: steps.idempotent.outputs.already_registered != 'true'
         run: |
-          URL="${{ steps.url.outputs.service_url }}"
+          URL="${{ steps.deploy.outputs.service_url }}"
           echo "## Action required: 2 operator clicks" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Open this URL and complete the GitHub App registration:" >> "$GITHUB_STEP_SUMMARY"
+          echo "Open this URL — the page auto-redirects to GitHub's App creation form:" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**[$URL]($URL)**" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "1. Click **Create GitHub App**" >> "$GITHUB_STEP_SUMMARY"
+          echo "1. Review the pre-filled form and click **Create GitHub App** on GitHub" >> "$GITHUB_STEP_SUMMARY"
           echo "2. On the next page, click **Install**" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "The workflow will continue automatically after both clicks." >> "$GITHUB_STEP_SUMMARY"
@@ -308,8 +301,9 @@ Extract the receiver URL and tell the operator:
 
 > **ACTION REQUIRED — 2 clicks:**
 > Open: `{SERVICE_URL}`
-> 1. Click **Create GitHub App**
-> 2. Click **Install** on the next page
+> The page will redirect automatically to GitHub's App creation form.
+> 1. Review the pre-filled form and click **Create GitHub App** on GitHub
+> 2. On the next page, click **Install**
 >
 > The workflow will complete automatically after both clicks.
 
