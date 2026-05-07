@@ -1,0 +1,37 @@
+name: publish-github-app-receiver
+
+on:
+  push:
+    paths:
+      - '.claude/plugins/engineering-std/skills/create-github-app/receiver/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build image
+        run: |
+          docker build \
+            -t ghcr.io/edri2or/ripo-skills-main/github-app-receiver:latest \
+            .claude/plugins/engineering-std/skills/create-github-app/receiver/
+
+      - name: Push image
+        run: docker push ghcr.io/edri2or/ripo-skills-main/github-app-receiver:latest
+
+      - name: Make package public
+        run: |
+          curl -s -X PATCH \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/user/packages/container/ripo-skills-main%2Fgithub-app-receiver \
+            -d '{"visibility":"public"}' || true
