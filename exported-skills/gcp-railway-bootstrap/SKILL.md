@@ -135,6 +135,7 @@ env:
   N8N_ADMIN_EMAIL: admin@life130.or-infra.com
   PG_IMAGE: ghcr.io/railwayapp-templates/postgres-ssl:17
   N8N_IMAGE: n8nio/n8n:latest
+  RAILWAY_GQL: https://backboard.railway.com/graphql/v2
 
 jobs:
   deploy:
@@ -160,7 +161,7 @@ jobs:
             local name="$1"
             VERSIONS=$(gcloud secrets versions list "$name" \
               --project="$GCP_PROJECT_ID" --format=json 2>/dev/null | jq 'length')
-            if [ "${VERSIONS:-0}" -gt 0 ]; then
+            if [ "$VERSIONS" -gt 0 ]; then
               echo "SKIP $name"
             else
               openssl rand -hex 32 | tr -d '\n' | \
@@ -169,9 +170,10 @@ jobs:
               echo "OK $name"
             fi
           }
-          generate_secret "N8N_ENCRYPTION_KEY"
-          generate_secret "N8N_BASIC_AUTH_PASSWORD"
-          generate_secret "N8N_OWNER_PASSWORD"
+          generate_secret "N8N_ENCRYPTION_KEY" &
+          generate_secret "N8N_BASIC_AUTH_PASSWORD" &
+          generate_secret "N8N_OWNER_PASSWORD" &
+          wait
 
       - name: Fetch secrets from GCP Secret Manager
         id: secrets
@@ -192,7 +194,7 @@ jobs:
           KNOWN_PROJECT_ID: ${{ secrets.RAILWAY_PROJECT_ID }}
         run: |
           if [ -n "$KNOWN_PROJECT_ID" ]; then
-            PROJ=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            PROJ=$(curl -sf -X POST "$RAILWAY_GQL" \
               -H "Authorization: Bearer $RAILWAY_TOKEN" \
               -H "Content-Type: application/json" \
               -d "$(jq -cn --arg id "$KNOWN_PROJECT_ID" \
@@ -208,7 +210,7 @@ jobs:
             echo "::warning::Stored project ID not found — scanning workspace"
           fi
 
-          WS_RESP=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+          WS_RESP=$(curl -sf -X POST "$RAILWAY_GQL" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"query":"{ me { workspaces { id name projects { edges { node { id name environments { edges { node { id name } } } } } } } } }"}')
@@ -230,7 +232,7 @@ jobs:
             echo "Creating Railway project..."
             PAYLOAD=$(jq -cn --arg wsId "$WORKSPACE_ID" \
               '{"query":"mutation($wsId:String!){projectCreate(input:{name:\"<project-name>\",workspaceId:$wsId,defaultEnvironmentName:\"production\"}){id environments{edges{node{id name}}}}}","variables":{"wsId":$wsId}}')
-            RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            RESPONSE=$(curl -sf -X POST "$RAILWAY_GQL" \
               -H "Authorization: Bearer $RAILWAY_TOKEN" \
               -H "Content-Type: application/json" \
               -d "$PAYLOAD")
@@ -252,7 +254,7 @@ jobs:
           RAILWAY_TOKEN: ${{ steps.secrets.outputs.RAILWAY_TOKEN }}
           PROJECT_ID: ${{ steps.railway.outputs.project_id }}
         run: |
-          ALL_SERVICES=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+          ALL_SERVICES=$(curl -sf -X POST "$RAILWAY_GQL" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$(jq -cn --arg pid "$PROJECT_ID" \
@@ -273,7 +275,7 @@ jobs:
               PAYLOAD=$(jq -cn --arg pid "$PROJECT_ID" --arg n "$name" --arg img "$image" \
                 '{"query":"mutation($pid:String!,$n:String!,$img:String!){serviceCreate(input:{projectId:$pid,name:$n,source:{image:$img}}){id name}}","variables":{"pid":$pid,"n":$n,"img":$img}}')
               local RESPONSE
-              RESPONSE=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+              RESPONSE=$(curl -sf -X POST "$RAILWAY_GQL" \
                 -H "Authorization: Bearer $RAILWAY_TOKEN" \
                 -H "Content-Type: application/json" \
                 -d "$PAYLOAD")
@@ -301,7 +303,7 @@ jobs:
         run: |
           set_var() {
             local name="$1" value="$2"
-            curl -s -X POST https://backboard.railway.com/graphql/v2 \
+            curl -sf -X POST "$RAILWAY_GQL" \
               -H "Authorization: Bearer $RAILWAY_TOKEN" \
               -H "Content-Type: application/json" \
               -d "$(jq -cn \
@@ -337,7 +339,7 @@ jobs:
         run: |
           PAYLOAD=$(jq -cn --arg eid "$ENV_ID" --arg sid "$N8N_SERVICE_ID" --arg d "$N8N_DOMAIN" \
             '{"query":"mutation($eid:String!,$sid:String!,$d:String!){customDomainCreate(input:{environmentId:$eid,serviceId:$sid,domain:$d}){id domain status}}","variables":{"eid":$eid,"sid":$sid,"d":$d}}')
-          RESULT=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+          RESULT=$(curl -sf -X POST "$RAILWAY_GQL" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$PAYLOAD")
@@ -351,7 +353,7 @@ jobs:
           N8N_SERVICE_ID: ${{ steps.services.outputs.n8n_service_id }}
           ENV_ID: ${{ steps.railway.outputs.env_id }}
         run: |
-          DOMAINS=$(curl -s -X POST https://backboard.railway.com/graphql/v2 \
+          DOMAINS=$(curl -sf -X POST "$RAILWAY_GQL" \
             -H "Authorization: Bearer $RAILWAY_TOKEN" \
             -H "Content-Type: application/json" \
             -d "$(jq -cn --arg sid "$N8N_SERVICE_ID" --arg eid "$ENV_ID" \
