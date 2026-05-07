@@ -1,6 +1,7 @@
 import base64
 import json
 import os
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -20,47 +21,66 @@ APP_PERMISSIONS = json.loads(base64.b64decode(_permissions_raw).decode())
 _events_raw = os.environ.get("APP_EVENTS", "W10=")
 APP_EVENTS = json.loads(base64.b64decode(_events_raw).decode())
 
+_token_cache: dict = {}
 
-def _gcp_token():
+
+def _gcp_token() -> str:
+    now = time.time()
+    if _token_cache.get("expires_at", 0) > now + 30:
+        return _token_cache["token"]
     req = urllib.request.Request(
         "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
         headers={"Metadata-Flavor": "Google"},
     )
     with urllib.request.urlopen(req, timeout=5) as r:
-        return json.loads(r.read())["access_token"]
+        data = json.loads(r.read())
+    _token_cache["token"] = data["access_token"]
+    _token_cache["expires_at"] = now + data.get("expires_in", 3600)
+    return _token_cache["token"]
+
+
+def _sm_url(name: str) -> str:
+    return f"https://secretmanager.googleapis.com/v1/projects/{GCP_PROJECT_ID}/secrets/{name}"
+
+
+def _auth_headers(token: str) -> dict:
+    return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
 
 def _sm_write(name: str, value: str):
     token = _gcp_token()
-    headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    secret_url = f"https://secretmanager.googleapis.com/v1/projects/{GCP_PROJECT_ID}/secrets/{name}"
-    version_url = f"{secret_url}:addVersion"
-    payload = {"payload": {"data": base64.b64encode(value.encode()).decode()}}
+    headers = _auth_headers(token)
+    secret_url = _sm_url(name)
 
-    # ensure secret container exists
     try:
         req = urllib.request.Request(secret_url, headers=headers)
         urllib.request.urlopen(req, timeout=10)
     except urllib.error.HTTPError as e:
-        if e.code == 404:
-            create_body = json.dumps({"replication": {"automatic": {}}}).encode()
-            create_req = urllib.request.Request(
-                f"https://secretmanager.googleapis.com/v1/projects/{GCP_PROJECT_ID}/secrets?secretId={name}",
-                data=create_body,
-                headers=headers,
-                method="POST",
-            )
+        if e.code != 404:
+            raise
+        create_body = json.dumps({"replication": {"automatic": {}}}).encode()
+        create_req = urllib.request.Request(
+            f"https://secretmanager.googleapis.com/v1/projects/{GCP_PROJECT_ID}/secrets?secretId={name}",
+            data=create_body,
+            headers=headers,
+            method="POST",
+        )
+        try:
             urllib.request.urlopen(create_req, timeout=10)
+        except urllib.error.HTTPError as e2:
+            if e2.code != 409:
+                raise
 
+    payload = {"payload": {"data": base64.b64encode(value.encode()).decode()}}
     body = json.dumps(payload).encode()
-    req = urllib.request.Request(version_url, data=body, headers=headers, method="POST")
+    req = urllib.request.Request(f"{secret_url}:addVersion", data=body, headers=headers, method="POST")
     urllib.request.urlopen(req, timeout=10)
     print(f"[SM] wrote {name}", flush=True)
 
 
 def _sm_exists(name: str) -> bool:
     token = _gcp_token()
-    url = f"https://secretmanager.googleapis.com/v1/projects/{GCP_PROJECT_ID}/secrets/{name}/versions/latest"
+    url = f"{_sm_url(name)}/versions/latest"
     try:
         req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
         urllib.request.urlopen(req, timeout=10)
@@ -70,13 +90,14 @@ def _sm_exists(name: str) -> bool:
 
 
 def _manifest() -> dict:
+    install_callback_url = REDIRECT_URL.replace("/callback", "/install-callback") if REDIRECT_URL else ""
     m = {
         "name": APP_NAME,
         "url": f"https://github.com/apps/{APP_NAME.lower().replace(' ', '-')}",
         "hook_attributes": {},
         "redirect_url": REDIRECT_URL,
-        "callback_urls": [REDIRECT_URL.replace("/callback", "/install-callback")] if REDIRECT_URL else [],
-        "setup_url": REDIRECT_URL.replace("/callback", "/install-callback") if REDIRECT_URL else "",
+        "callback_urls": [install_callback_url] if install_callback_url else [],
+        "setup_url": install_callback_url,
         "public": True,
         "default_permissions": APP_PERMISSIONS,
         "default_events": APP_EVENTS,
