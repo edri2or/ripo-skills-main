@@ -11,7 +11,7 @@ that GitHub's policy requires from the operator.
 
 | Prerequisite | How to verify |
 |---|---|
-| GCP WIF configured for the target repo | `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_SERVICE_ACCOUNT_EMAIL` exist as GitHub Actions variables |
+| GCP WIF configured for the target repo | WIF provider and service account exist as GitHub Actions variables |
 | GCP SA has Cloud Run Admin + Secret Manager Admin | `gcloud projects get-iam-policy {gcp_project_id}` lists the SA roles |
 | Operator is an admin of `github_org` | Can view `https://github.com/organizations/{github_org}/settings/apps` |
 
@@ -30,6 +30,10 @@ Collect from operator or context before proceeding:
 | `secret_prefix` | `github-app-` | All SM secrets will be named `{prefix}id`, `{prefix}private-key`, etc. |
 | `permissions` | `{"contents":"write","metadata":"read"}` | JSON object of GitHub App permissions |
 | `webhook_url` | _(optional)_ | Omit for API-only apps |
+| `receiver_image` | _(optional)_ | Override the Cloud Run receiver image; defaults to the published image |
+| `region` | _(optional)_ | GCP region for Cloud Run; default `us-central1` |
+| `wif_provider_var` | _(optional)_ | GitHub Actions variable name holding the WIF provider; default `GCP_WORKLOAD_IDENTITY_PROVIDER` |
+| `wif_sa_var` | _(optional)_ | GitHub Actions variable name holding the WIF service account; default `GCP_SERVICE_ACCOUNT_EMAIL` |
 
 **Abort** if `github_org` contains `.com`, `.io`, `.org`, or any dot — that is a
 domain name, not a GitHub org login.
@@ -81,6 +85,26 @@ on:
         required: false
         type: string
         default: ''
+      receiver_image:
+        required: false
+        type: string
+        default: ghcr.io/edri2or/ripo-skills-main/github-app-receiver:latest
+        description: Docker image for the Cloud Run receiver
+      region:
+        required: false
+        type: string
+        default: us-central1
+        description: GCP region for Cloud Run deployment
+      wif_provider_var:
+        required: false
+        type: string
+        default: GCP_WORKLOAD_IDENTITY_PROVIDER
+        description: GitHub Actions variable name holding the WIF provider
+      wif_sa_var:
+        required: false
+        type: string
+        default: GCP_SERVICE_ACCOUNT_EMAIL
+        description: GitHub Actions variable name holding the WIF service account
 
 permissions:
   id-token: write
@@ -91,16 +115,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SERVICE_NAME: github-app-receiver-${{ github.run_id }}
-      REGION: us-central1
-      IMAGE: ghcr.io/edri2or/ripo-skills-main/github-app-receiver:latest
+      REGION: ${{ inputs.region }}
+      IMAGE: ${{ inputs.receiver_image }}
       PERMISSIONS_JSON: ${{ inputs.permissions }}
       EVENTS_JSON: ${{ inputs.events }}
     steps:
       - name: Auth GCP
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT_EMAIL }}
+          workload_identity_provider: ${{ vars[inputs.wif_provider_var] }}
+          service_account: ${{ vars[inputs.wif_sa_var] }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -132,7 +156,7 @@ jobs:
             --region="$REGION" \
             --platform=managed \
             --allow-unauthenticated \
-            --service-account="${{ vars.GCP_SERVICE_ACCOUNT_EMAIL }}" \
+            --service-account="${{ vars[inputs.wif_sa_var] }}" \
             --project="${{ inputs.gcp_project_id }}" \
             --set-env-vars="GCP_PROJECT_ID=${{ inputs.gcp_project_id }},GITHUB_ORG=${{ inputs.github_org }},APP_NAME=${{ inputs.app_name }},SECRET_PREFIX=${{ inputs.secret_prefix }},APP_PERMISSIONS=${PERMS_B64},APP_EVENTS=${EVENTS_B64},WEBHOOK_URL=${{ inputs.webhook_url }}"
 
@@ -251,7 +275,11 @@ POST /repos/{owner}/{repo}/actions/workflows/create-github-app.yml/dispatches
     "secret_prefix": "{secret_prefix}",
     "permissions": "{permissions_json}",
     "events": "[]",
-    "webhook_url": "{webhook_url or ''}"
+    "webhook_url": "{webhook_url or ''}",
+    "receiver_image": "{override or omit for default}",
+    "region": "{override or omit for default}",
+    "wif_provider_var": "{override or omit for default}",
+    "wif_sa_var": "{override or omit for default}"
   }
 }
 ```
