@@ -1,6 +1,6 @@
 ---
 name: gcp-railway-bootstrap
-description: "Bootstraps [your-railway] project + PostgreSQL + N8N via GCP Secret Manager WIF keyless auth. Creates [your-railway] services, configures N8N env vars, registers [your-cloudflare] DNS, waits for healthcheck, and creates owner account. Use when GCP project and secrets exist and you need N8N deployed autonomously on [your-railway]."
+description: "Bootstraps [your-railway] + PostgreSQL + N8N via GCP Secret Manager WIF keyless auth. Creates services, configures N8N env vars, registers [your-cloudflare] DNS, waits for healthcheck, and creates owner account. Use when GCP and secrets exist."
 allowed-tools:
   - Read
   - Bash(git remote get-url origin)
