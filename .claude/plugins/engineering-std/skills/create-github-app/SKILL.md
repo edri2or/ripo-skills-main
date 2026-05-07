@@ -105,6 +105,8 @@ jobs:
       SERVICE_NAME: github-app-receiver-${{ github.run_id }}
       REGION: us-central1
       IMAGE: ghcr.io/edri2or/ripo-skills-main/github-app-receiver:latest
+      PERMISSIONS_JSON: ${{ inputs.permissions }}
+      EVENTS_JSON: ${{ inputs.events }}
     steps:
       - name: Auth GCP
         uses: google-github-actions/auth@v2
@@ -121,10 +123,10 @@ jobs:
           PREFIX="${{ inputs.secret_prefix }}"
           PROJECT="${{ inputs.gcp_project_id }}"
           has_id=$(gcloud secrets versions access latest \
-            --secret="${PREFIX}id" --project="$PROJECT" 2>/dev/null && echo yes || echo no)
+            --secret="${PREFIX}id" --project="$PROJECT" > /dev/null 2>&1 && echo true || echo false)
           has_install=$(gcloud secrets versions access latest \
-            --secret="${PREFIX}installation-id" --project="$PROJECT" 2>/dev/null && echo yes || echo no)
-          if [[ "$has_id" == "yes" && "$has_install" == "yes" ]]; then
+            --secret="${PREFIX}installation-id" --project="$PROJECT" > /dev/null 2>&1 && echo true || echo false)
+          if [[ "$has_id" == "true" && "$has_install" == "true" ]]; then
             echo "already_registered=true" >> "$GITHUB_OUTPUT"
             echo "## Already registered" >> "$GITHUB_STEP_SUMMARY"
             echo "Secrets \`${PREFIX}id\` and \`${PREFIX}installation-id\` already exist — nothing to do." >> "$GITHUB_STEP_SUMMARY"
@@ -135,8 +137,8 @@ jobs:
       - name: Deploy Cloud Run receiver
         if: steps.idempotent.outputs.already_registered != 'true'
         run: |
-          PERMS_B64=$(echo '${{ inputs.permissions }}' | base64 -w 0)
-          EVENTS_B64=$(echo '${{ inputs.events }}' | base64 -w 0)
+          PERMS_B64=$(printf '%s' "$PERMISSIONS_JSON" | base64 -w 0)
+          EVENTS_B64=$(printf '%s' "$EVENTS_JSON" | base64 -w 0)
           gcloud run deploy "$SERVICE_NAME" \
             --image="$IMAGE" \
             --region="$REGION" \
@@ -205,22 +207,27 @@ jobs:
         run: |
           PREFIX="${{ inputs.secret_prefix }}"
           PROJECT="${{ inputs.gcp_project_id }}"
-          for secret in "${PREFIX}id" "${PREFIX}installation-id"; do
-            echo "Waiting for secret: $secret"
+
+          poll_secret() {
+            local secret="$1"
             for i in $(seq 1 64); do
               if gcloud secrets versions access latest \
                   --secret="$secret" --project="$PROJECT" > /dev/null 2>&1; then
-                echo "Secret $secret is present"
-                break
+                echo "Secret $secret is present"; return 0
               fi
               if [[ $i -eq 64 ]]; then
-                echo "Timed out waiting for $secret" >&2
                 echo "::error::Timed out waiting for $secret — operator may not have completed both clicks" >> "$GITHUB_STEP_SUMMARY"
-                exit 1
+                return 1
               fi
               sleep 30
             done
-          done
+          }
+
+          poll_secret "${PREFIX}id" &
+          PID1=$!
+          poll_secret "${PREFIX}installation-id" &
+          PID2=$!
+          wait $PID1 && wait $PID2
 
       - name: Teardown receiver
         if: always() && steps.idempotent.outputs.already_registered != 'true'
